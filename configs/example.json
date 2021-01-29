@@ -1,0 +1,16 @@
+{
+    "general": {
+        "id": "vjDFznJKVBVkny4VMTpuMTPr3L3kas6ctidcaE9wP3eAyJxLDexTuMUg2Vt7aQcC",
+        "product_url": "https://www.notebooksbilliger.de/nvidia+geforce+rtx+3080+founders+edition",
+        "debug": false
+    },
+    "amazon": {
+        "email": "example@example.com",
+        "password": "password",
+        "totp_secret": "SomeRandomTOTPSecret"
+    },
+    "nbb": {
+        "phone_number": "'+12345678'",
+        "checkout": false
+    }
+}

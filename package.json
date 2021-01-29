@@ -1,0 +1,24 @@
+{
+  "name": "nbb-autobuy-bot",
+  "version": "0.0.1",
+  "description": "AutoBuy Bot for NBB.com",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spyfly/nbb-autobuy-bot.git"
+  },
+  "author": "spyfly",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/spyfly/nbb-autobuy-bot/issues"
+  },
+  "homepage": "https://github.com/spyfly/nbb-autobuy-bot#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "playwright": "^1.8.0",
+    "speakeasy": "^2.0.0"
+  }
+}
