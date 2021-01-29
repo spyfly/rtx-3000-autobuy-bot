@@ -1,3 +1,4 @@
 /configs/*
 !/configs/example.json
 node_modules/
+debug*

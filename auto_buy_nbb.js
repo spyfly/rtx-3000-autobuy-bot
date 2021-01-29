@@ -2,7 +2,7 @@ const playwright = require('playwright');
 const fs = require('fs');
 const speakeasy = require("speakeasy");
 
-async function autoBuy (config) {
+async function autoBuy(config) {
   const browser = await playwright['firefox'].launch();
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -11,16 +11,16 @@ async function autoBuy (config) {
   await page.goto(config.general.product_url + '/action/add_product');
 
   console.log("Step 1: Adding Item to Cart");
-  
+
   if (config.general.debug) {
-    await page.screenshot({path: 'debug_buy.png'});
+    await page.screenshot({ path: 'debug_buy.png' });
   }
 
   console.log("Step 2.1: Going to Checkout");
   await page.goto('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1')
-  
+
   if (config.general.debug) {
-    await page.screenshot({path: 'debug_buy_checkout.png'});
+    await page.screenshot({ path: 'debug_buy_checkout.png' });
   }
 
   console.log("Step 2.2: Clicking away cookies banner");
@@ -29,62 +29,64 @@ async function autoBuy (config) {
   console.log("Step 3.1: Starting Amazon Pay")
   await page.click('#loginWithAmazon');
 
-  context.on("page", async newPage => {
-    //Amazon Pay start
-    console.log("Step 3.2: Filling in Amazon Pay Credentials")
-    await newPage.fill('#ap_email', config.amazon.email)
-    await newPage.fill('#ap_password', config.amazon.password)
-    await newPage.click('#signInSubmit');
+  const amazonPayPage = await context.waitForEvent('page');
 
-    console.log("Step 3.3: Generating 2FA Code")
-    var token = speakeasy.totp({
-      secret: config.amazon.totp_secret,
-      encoding: 'base32'
-    });
+  //Amazon Pay start
+  console.log("Step 3.2: Filling in Amazon Pay Credentials")
+  await amazonPayPage.fill('#ap_email', config.amazon.email)
+  await amazonPayPage.fill('#ap_password', config.amazon.password)
+  await amazonPayPage.click('#signInSubmit');
 
-    if (config.general.debug) {
-      await newPage.screenshot({path: 'debug_buy_amazon_pay_pw.png'});
-    }
+  console.log("Step 3.3: Generating 2FA Code")
+  var token = speakeasy.totp({
+    secret: config.amazon.totp_secret,
+    encoding: 'base32'
+  });
 
-    await newPage.fill('#auth-mfa-otpcode', token);
+  if (config.general.debug) {
+    await amazonPayPage.screenshot({ path: 'debug_buy_amazon_pay_pw.png' });
+  }
 
-    console.log("Step 3.4: Finalizing Amazon Pay Login")
-    await newPage.click('#auth-signin-button');
+  await amazonPayPage.fill('#auth-mfa-otpcode', token);
 
-    //Wait for Checkout Page to load
-    console.log("Step 4.1: Starting Checkout Process")
-    await page.waitForNavigation();
+  console.log("Step 3.4: Finalizing Amazon Pay Login")
+  await amazonPayPage.click('#auth-signin-button');
 
-    if (config.general.debug) {
-      await page.screenshot({path: 'debug_checkout_1.png'});
-    }
+  //Wait for Checkout Page to load
+  console.log("Step 4.1: Starting Checkout Process")
+  await page.waitForNavigation();
 
-    await page.click('#amazon-pay-to-checkout');
+  if (config.general.debug) {
+    await page.screenshot({ path: 'debug_checkout_1.png' });
+  }
 
-    //Filling in phone and confirming shipping
-    console.log("Step 4.2: Filling in Phone Number and confirming shipping")
-    await page.fill('[name="newbilling[telephone]"]', config.nbb.phone_number)
-    await page.click('[for="conditions"]', {position: {
+  await page.click('#amazon-pay-to-checkout');
+
+  //Filling in phone and confirming shipping
+  console.log("Step 4.2: Filling in Phone Number and confirming shipping")
+  await page.fill('[name="newbilling[telephone]"]', config.nbb.phone_number)
+  await page.click('[for="conditions"]', {
+    position: {
       x: 10, y: 10
-    }});
-
-    if (config.general.debug) {
-      await page.screenshot({path: 'debug_checkout_2.png'});
     }
+  });
 
-    await page.click('#button_bottom');
+  if (config.general.debug) {
+    await page.screenshot({ path: 'debug_checkout_2.png' });
+  }
 
-    //Final Checkout
-    console.log("Step 4.3: Finalizing Checkout")
-    if (config.nbb.checkout) {
-      await page.click('checkout_submit');
-    }
+  await page.click('#button_bottom');
 
-    if (config.general.debug) {
-      await page.screenshot({path: 'debug_checkout_3.png'});
-    }
+  //Final Checkout
+  console.log("Step 4.3: Finalizing Checkout")
+  if (config.nbb.checkout) {
+    await page.click('checkout_submit');
+  }
 
-    await browser.close();
-  })
+  if (config.general.debug) {
+    await page.screenshot({ path: 'debug_checkout_3.png' });
+  }
+
+  await browser.close();
 }
 module.exports = autoBuy;
