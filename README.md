@@ -10,4 +10,4 @@ This Bot adds a product of your choice to your basket and checks out automatical
 ## Usage
 1. Create a configuration file for each account, check [example.json](configs/example.json) for more details.
 2. `node bot.js`
-3. Call `localhost:3000/run/{id}` to run the checkout_job when required.
+3. Call `localhost:3000/run/{id}` to run the checkout_job when required. You can also let the [rtx-3000-stock-checker](https://github.com/spyfly/rtx-3000-stock-checker) perform this task.
