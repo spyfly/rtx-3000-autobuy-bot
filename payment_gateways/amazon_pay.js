@@ -2,7 +2,6 @@ const speakeasy = require("speakeasy");
 
 module.exports = async function (amazonPayPopup, config) {
     //Amazon Pay start
-    var finished = false;
     await amazonPayPopup.on('load', async () => {
         const url = await amazonPayPopup.url().split('?')[0];
         //console.log(url)
@@ -29,15 +28,12 @@ module.exports = async function (amazonPayPopup, config) {
                 break;
 
             case "https://payments.amazon.de/checkout/auth":
-                if (!finished) {
-                    console.log("Step 3.5: Clicking proceed in Amazon Pay")
-                    try {
-                        await amazonPayPopup.click(".a-button-input");
-                    } catch (err) {
-                        if (!err.message.includes("Target closed"))
-                            console.log(err);
-                    }
-                    finished = true;
+                console.log("Step 3.5: Clicking proceed in Amazon Pay")
+                try {
+                    await amazonPayPopup.click(".a-button-input");
+                } catch (err) {
+                    if (!err.message.includes("closed"))
+                        console.log(err);
                 }
                 break;
             default:

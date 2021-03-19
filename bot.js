@@ -3,12 +3,14 @@ const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { exec } = require('child_process');
+const TelegramBot = require('node-telegram-bot-api');
 const app = express();
 const shops = {
     nbb: require('./shops/nbb.js'),
     asus: require('./shops/asus.js'),
 }
 var users = {}
+var telegram = {}
 
 fs.readdir('configs/', function (err, files) {
     if (err) {
@@ -24,6 +26,7 @@ fs.readdir('configs/', function (err, files) {
             continue;
         const data = JSON.parse(raw);
         users[user] = data;
+        telegram[user] = new TelegramBot(data.telegram.token, { polling: false });
     }
 
     app.use(bodyParser.json())
@@ -49,7 +52,7 @@ fs.readdir('configs/', function (err, files) {
                         if (deal.price <= price_limit) {
                             console.log(deal.price + " matched price_limit of " + price_limit)
                             console.log("Executing AutoBuy for " + shop + " for " + user);
-                            executeAutoBuy(shop, config, deal);
+                            executeAutoBuy(shop, config, deal, telegram[user]);
                         } else {
                             console.log(deal.price + " didn't meet price_limit of " + price_limit)
                         }
@@ -70,7 +73,7 @@ fs.readdir('configs/', function (err, files) {
     })
 });
 
-async function executeAutoBuy(shop, config, deal, retry = 0) {
+async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
     //var shop, config, deal, retry;
     if (retry < 10) {
         if (retry != 0)
@@ -78,13 +81,19 @@ async function executeAutoBuy(shop, config, deal, retry = 0) {
         shops[shop](config, deal).then((result) => {
             if (result.success) {
                 console.log("Successful Purchase!")
+                telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
+                    caption: "Successfully purchased " + deal.title + " for " + deal.price + "€" + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
+                })
                 console.log(result)
             } else {
                 console.log(result);
                 console.log("Purchase Failure for " + deal.title)
-                executeAutoBuy(shop, config, deal, ++retry)
+                telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
+                    caption: "Purchase Failure " + deal.title + " for " + deal.price + "€" + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
+                })
+                executeAutoBuy(shop, config, deal, telegram, ++retry)
             }
-        }, () => { });
+        });
     } else {
         console.log("Maximum Retries reached!");
     }

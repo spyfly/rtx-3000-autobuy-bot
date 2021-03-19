@@ -4,7 +4,22 @@ const amazonPay = require("../payment_gateways/amazon_pay.js")
 
 async function autoBuy(config, deal) {
   var sucess = true;
-  const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/', { headless: true, recordVideo: { dir: './videos/' } });
+  var browser_options = {
+    recordVideo: {
+      dir: '/tmp/videos/rtx-3000-autobuy-bot'
+    },
+    headless: !config.general.debug
+  };
+
+  if (config.general.userAgent) {
+    browser_options.userAgent = config.general.userAgent;
+  }
+
+  if (config.general.proxy) {
+    browser_options.proxy = { server: config.general.proxy };
+  }
+
+  const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/', browser_options);
   const page = await context.newPage();
   const videoPath = await page.video().path();
   try {
@@ -15,7 +30,7 @@ async function autoBuy(config, deal) {
     console.log("Step 1: Adding Item to Cart");
 
     console.log("Step 2.1: Going to Checkout");
-    await page.goto('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1')
+    await page.goto('https://www.notebooksbilliger.de/warenkorb')
 
     console.log("Step 2.2: Clicking away cookies banner");
     try {
@@ -23,7 +38,7 @@ async function autoBuy(config, deal) {
     } catch { }
 
     console.log("Step 3.1: Starting Amazon Pay")
-    await page.click('#loginWithAmazon');
+    await page.click('.amazonpay-button-enabled');
 
     context.on('page', async (amazonPayPopup) => {
       await amazonPay(amazonPayPopup, config.payment_gateways.amazon)
@@ -31,10 +46,6 @@ async function autoBuy(config, deal) {
 
     //Wait for Checkout Page to load
     await page.waitForNavigation();
-
-    if (config.general.debug) {
-      await page.screenshot({ path: 'debug_checkout_1.png' });
-    }
 
     console.log("Step 4.1: Starting Checkout Process")
     await page.click('#amazon-pay-to-checkout');
@@ -47,7 +58,6 @@ async function autoBuy(config, deal) {
         x: 10, y: 10
       }
     });
-
     await page.click('#button_bottom');
 
     //Final Checkout
@@ -55,7 +65,11 @@ async function autoBuy(config, deal) {
     if (config.shops.nbb.checkout) {
       await page.click('checkout_submit');
     }
+
+    //Allow for the page to be recorded
+    await page.waitForTimeout(1000);
   } catch (err) {
+    console.log(err);
     sucess = false;
   }
 
