@@ -1,0 +1,2 @@
+#!/bin/sh
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3070", "href": "https://www.saturn.de/de/product/_msi-geforce-rtx-3060-ti-gaming-x-v397-010r-2719317.html", "price": "56.9"}}'   http://localhost:3000/trigger

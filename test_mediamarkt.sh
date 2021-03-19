@@ -1,0 +1,2 @@
+#!/bin/sh
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3080", "href": "https://www.mediamarkt.de/de/product/_asus-rog-strix-rtx3060ti-o8g-gaming-90yv0g02-m0na00-2701234.html", "price": "56.9"}}'   http://localhost:3000/trigger

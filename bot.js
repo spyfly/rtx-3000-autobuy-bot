@@ -8,6 +8,7 @@ const app = express();
 const shops = {
     nbb: require('./shops/nbb.js'),
     asus: require('./shops/asus.js'),
+    ceconomy: require('./shops/ceconomy.js'),
 }
 var users = {}
 var telegram = {}
@@ -83,7 +84,7 @@ async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
             if (result.success) {
                 console.log("Successful Purchase!")
                 telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
-                    caption: "Successfully purchased " + deal.title + " for " + deal.price + "€" + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
+                    caption: "Successfully purchased " + deal.title + " for " + deal.price + "€ at " + deal.href + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
                 })
                 console.log(result)
             } else {
