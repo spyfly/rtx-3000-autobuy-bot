@@ -1,5 +1,5 @@
 const speakeasy = require("speakeasy");
-const fs = require('fs');
+import { promises as fs } from 'fs';
 
 module.exports = async function (amazonPayPopup, config) {
     //Amazon Pay start
