@@ -24,7 +24,8 @@ fs.readdir('configs/', function (err, files) {
         const user = file.replace(".json", "");
         if (user == "example")
             continue;
-        const data = JSON.parse(raw);
+        var data = JSON.parse(raw);
+        data.user = user;
         users[user] = data;
         telegram[user] = new TelegramBot(data.telegram.token, { polling: false });
     }

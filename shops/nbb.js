@@ -19,7 +19,7 @@ async function autoBuy(config, deal) {
     browser_options.proxy = { server: config.general.proxy };
   }
 
-  const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/', browser_options);
+  const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/' + config.user + "/", browser_options);
   const page = await context.newPage();
   const videoPath = await page.video().path();
   try {
