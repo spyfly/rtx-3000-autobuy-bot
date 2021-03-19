@@ -37,6 +37,11 @@ module.exports = async function (amazonPayPopup, config) {
                         console.log(err);
                 }
                 break;
+
+            case "https://www.amazon.de/ap/mfa/new-otp":
+                console.log("Step 3.x: Confirming new OTP Device")
+                await amazonPayPopup.click(".a-button-input");
+                break;
             default:
                 console.log("DEBUG: Unknown Amazon Pay URL: " + url)
                 await fs.writeFile('amazon_pay_debug.html', await amazonPayPopup.content());
