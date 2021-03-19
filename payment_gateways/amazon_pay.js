@@ -39,7 +39,7 @@ module.exports = async function (amazonPayPopup, config) {
                 break;
             default:
                 console.log("DEBUG: Unknown Amazon Pay URL: " + url)
-                await fs.writeFile(await amazonPayPopup.content(), 'amazon_pay_debug.html');
+                await fs.writeFile('amazon_pay_debug.html', await amazonPayPopup.content());
                 break;
         }
     });
