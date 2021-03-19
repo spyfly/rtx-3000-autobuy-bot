@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
+const { exec } = require('child_process');
 const app = express();
 const shops = {
-    nbb: require('./shops/nbb.js')
+    nbb: require('./shops/nbb.js'),
+    asus: require('./shops/asus.js'),
 }
 var users = {}
 
@@ -26,13 +28,6 @@ fs.readdir('configs/', function (err, files) {
 
     app.use(bodyParser.json())
 
-    app.get('/run/:job_id', async (req, res) => {
-        res.send(JSON.stringify({
-            message: message,
-            success: success
-        }))
-    });
-
     app.post('/trigger', function (req, res) {
         const json = req.body;
         executeJobs(json, res);
@@ -40,6 +35,8 @@ fs.readdir('configs/', function (err, files) {
     })
 
     async function executeJobs(json) {
+        console.log(JSON.stringify(json));
+
         for (const [user, config] of Object.entries(users)) {
             const shop = json.shop;
             const deal = json.deal;
@@ -52,7 +49,7 @@ fs.readdir('configs/', function (err, files) {
                         if (deal.price <= price_limit) {
                             console.log(deal.price + " matched price_limit of " + price_limit)
                             console.log("Executing AutoBuy for " + shop + " for " + user);
-                            shops[shop](config, deal);
+                            executeAutoBuy(shop, config, deal);
                         } else {
                             console.log(deal.price + " didn't meet price_limit of " + price_limit)
                         }
@@ -62,7 +59,7 @@ fs.readdir('configs/', function (err, files) {
                 if (!match)
                     console.log('"' + deal.title + '" didn\'t match any listed card!')
             } else {
-                console.log("Store not found");
+                console.log("Store not found in config");
             }
         }
     }
@@ -72,3 +69,23 @@ fs.readdir('configs/', function (err, files) {
         console.log(`RTX 3000 AutoBuy Bot listening at http://localhost:${port}`)
     })
 });
+
+async function executeAutoBuy(shop, config, deal, retry = 0) {
+    //var shop, config, deal, retry;
+    if (retry < 10) {
+        if (retry != 0)
+            console.log("Retry " + retry + " for " + deal.title);
+        shops[shop](config, deal).then((result) => {
+            if (result.success) {
+                console.log("Successful Purchase!")
+                console.log(result)
+            } else {
+                console.log(result);
+                console.log("Purchase Failure for " + deal.title)
+                executeAutoBuy(shop, config, deal, ++retry)
+            }
+        }, () => { });
+    } else {
+        console.log("Maximum Retries reached!");
+    }
+}

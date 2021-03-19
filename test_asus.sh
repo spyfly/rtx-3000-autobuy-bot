@@ -1,0 +1,2 @@
+#!/bin/sh
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"asus","deal":{"title":"ASUS ROG-STRIX-RTX3090-O24G-GAMING.","href":"https://webshop.asus.com/de/komponenten/grafikkarten/nvidia-serie/2993/asus-gt710-sl-1gd5","price":1400}}'   http://localhost:3000/trigger
