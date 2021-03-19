@@ -37,6 +37,7 @@ module.exports = async function (amazonPayPopup, config) {
                 }
                 break;
             default:
+                console.log("Unknown Amazon Pay URL: " + url)
                 break;
         }
     });
