@@ -1,4 +1,5 @@
 const speakeasy = require("speakeasy");
+const fs = require('fs');
 
 module.exports = async function (amazonPayPopup, config) {
     //Amazon Pay start
@@ -37,7 +38,8 @@ module.exports = async function (amazonPayPopup, config) {
                 }
                 break;
             default:
-                console.log("Unknown Amazon Pay URL: " + url)
+                console.log("DEBUG: Unknown Amazon Pay URL: " + url)
+                fs.writeFile(await amazonPayPopup.content(), 'amazon_pay_debug.html');
                 break;
         }
     });
