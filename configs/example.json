@@ -1,16 +1,25 @@
 {
     "general": {
-        "id": "vjDFznJKVBVkny4VMTpuMTPr3L3kas6ctidcaE9wP3eAyJxLDexTuMUg2Vt7aQcC",
-        "product_url": "https://www.notebooksbilliger.de/nvidia+geforce+rtx+3080+founders+edition",
-        "debug": false
+        "debug": true
     },
-    "amazon": {
-        "email": "example@example.com",
-        "password": "password",
-        "totp_secret": "SomeRandomTOTPSecret"
+    "payment_gateways": {
+        "amazon": {
+            "email": "example@example.com",
+            "password": "password",
+            "totp_secret": "SomeRandomTOTPSecret"
+        }
     },
-    "nbb": {
-        "phone_number": "'+12345678'",
-        "checkout": false
+    "shops": {
+        "nbb": {
+            "phone_number": "'+12345678'",
+            "checkout": false
+        }
+    },
+    "price_limits": {
+        "3090": 1500,
+        "3080": 1250,
+        "3070": 725,
+        "3060 Ti": 675,
+        "3060": 500
     }
 }
