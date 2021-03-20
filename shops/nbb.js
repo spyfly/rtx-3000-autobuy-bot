@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const amazonPay = require("../payment_gateways/amazon_pay.js")
+const imposter = require('../libs/imposter.js');
 
 async function autoBuy(config, deal) {
   var sucess = true;
@@ -11,9 +12,10 @@ async function autoBuy(config, deal) {
     headless: !config.general.debug
   };
 
-  if (config.general.userAgent) {
-    browser_options.userAgent = config.general.userAgent;
-  }
+  console.log(config.user);
+  const browserDetails = await imposter.getBrowserDetails(config.user);
+  browser_options.userAgent = browserDetails.userAgent;
+  browser_options.viewport = browserDetails.viewport;
 
   if (config.general.proxy) {
     browser_options.proxy = { server: config.general.proxy };
@@ -25,49 +27,75 @@ async function autoBuy(config, deal) {
   try {
     console.log("Finished Setup!");
 
-    await page.goto(deal.href + '/action/add_product');
+    await page.goto(deal.href + '/action/add_product', { timeout: 60000 });
 
     console.log("Step 1: Adding Item to Cart");
+    const data = await page.content();
 
-    console.log("Step 2.1: Going to Checkout");
-    await page.goto('https://www.notebooksbilliger.de/warenkorb')
+    //Checking Page Contents
+    if (data.includes("client has been blocked by bot protection.")) {
+      message = "NBB Bot blocked by bot protection! UA: " + await page.evaluate(() => navigator.userAgent);;
+      status = "blocked_by_bot_protection";
 
-    console.log("Step 2.2: Clicking away cookies banner");
-    try {
-      await page.click('#uc-btn-accept-banner', { timeout: 500 })
-    } catch { }
+      console.log(message)
+      //Generate new User Agent String
+      await imposter.generateNewDetails(user);
+      console.log("Generated new User Agent!");
+      sucess = false;
 
-    console.log("Step 3.1: Starting Amazon Pay")
-    await page.click('.amazonpay-button-enabled');
+    } else if (data.includes(deal.title)) {
 
-    context.on('page', async (amazonPayPopup) => {
-      await amazonPay(amazonPayPopup, config.payment_gateways.amazon)
-    });
+      console.log("Step 2.1: Going to Checkout");
+      await page.goto('https://www.notebooksbilliger.de/warenkorb')
 
-    //Wait for Checkout Page to load
-    await page.waitForNavigation();
+      const basket = await page.content();
+      if (basket.includes('Zur Zeit befinden sich keine Produkte im Warenkorb.')) {
+        console.log("Couldn't add product to basket!");
+        sucess = false;
+      } else {
 
-    console.log("Step 4.1: Starting Checkout Process")
-    await page.click('#amazon-pay-to-checkout');
+        console.log("Step 2.2: Clicking away cookies banner");
+        try {
+          await page.click('#uc-btn-accept-banner', { timeout: 500 })
+        } catch { }
 
-    //Filling in phone and confirming shipping
-    console.log("Step 4.2: Filling in Phone Number and confirming shipping")
-    await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
-    await page.click('[for="conditions"]', {
-      position: {
-        x: 10, y: 10
+        console.log("Step 3.1: Starting Amazon Pay")
+        await page.click('.amazonpay-button-enabled');
+
+        context.on('page', async (amazonPayPopup) => {
+          await amazonPay(amazonPayPopup, config.payment_gateways.amazon)
+        });
+
+        //Wait for Checkout Page to load
+        await page.waitForNavigation();
+
+        console.log("Step 4.1: Starting Checkout Process")
+        await page.click('#amazon-pay-to-checkout');
+
+        //Filling in phone and confirming shipping
+        console.log("Step 4.2: Filling in Phone Number and confirming shipping")
+        await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
+        await page.click('[for="conditions"]', {
+          position: {
+            x: 10, y: 10
+          }
+        });
+        await page.click('#button_bottom');
+
+        //Final Checkout
+        console.log("Step 4.3: Finalizing Checkout")
+        if (config.shops.nbb.checkout) {
+          await page.click('checkout_submit');
+        }
+
+        //Allow for the page to be recorded
+        await page.waitForTimeout(1000);
       }
-    });
-    await page.click('#button_bottom');
-
-    //Final Checkout
-    console.log("Step 4.3: Finalizing Checkout")
-    if (config.shops.nbb.checkout) {
-      await page.click('checkout_submit');
+    } else {
+      message = "Couldn't fetch NBB product page, maybe new bot protection?";
+      status = "fetch_failure"
+      sucess = false;
     }
-
-    //Allow for the page to be recorded
-    await page.waitForTimeout(1000);
   } catch (err) {
     console.log(err);
     sucess = false;
