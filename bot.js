@@ -47,7 +47,7 @@ fs.readdir('configs/', function (err, files) {
             const deal = json.deal;
             if (config.shops[shop]) {
                 var match = false;
-                for (const [card, price_limit] of Object.entries(config.price_limits)) {
+                for (const [card, price_limit] of Object.entries(config.price_limits).reverse()) {
                     if (deal.title.toLowerCase().includes(card)) {
                         match = true;
                         console.log('"' + deal.title + '" matched card: ' + card)
