@@ -34,16 +34,16 @@ async function autoBuy(config, deal) {
         console.log("Step 1.2: Adding Item to Cart");
         await page.click(".buybox--button");
 
-        var amznPayBtnAppeared = false;
+        var amznPayBtnAppeared = 0;
         console.log("Step 2: Waiting for Amazon Pay Button to appear")
-        while (!amznPayBtnAppeared) {
+        while (amznPayBtnAppeared < 10 && amznPayBtnAppeared != -1) {
             try {
-                await page.waitForSelector(".amazonpay-button-inner-image", { timeout: 3000 });
+                await page.waitForSelector(".amazonpay-button-inner-image", { timeout: 5000 });
                 console.log("Step 3.1: Clicking Amazon Pay Button")
                 await page.evaluate(() => document.querySelector(".amazonpay-button-inner-image").click());
-                amznPayBtnAppeared = true;
+                amznPayBtnAppeared = -1;
             } catch {
-                console.log("Step 2.1: Amazon Pay Button did not appear, trying again!")
+                console.log("Step 2.1: Amazon Pay Button did not appear, trying again! | Try: " + ++amznPayBtnAppeared)
                 await page.goto("https://webshop.asus.com/de/checkout");
             }
         }
