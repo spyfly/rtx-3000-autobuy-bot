@@ -55,7 +55,7 @@ async function autoBuy(config, deal) {
         //Amazon Pay Finish
 
         //Wait for Checkout Page to load
-        await page.waitForNavigation();
+        await page.waitForNavigation({ timeout: 60000 });
         console.log("Step 4.1: Starting Checkout Process")
 
         //Confirming address
