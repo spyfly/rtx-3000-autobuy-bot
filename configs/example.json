@@ -1,17 +1,23 @@
 {
     "general": {
-        "debug": true
+        "debug": false,
     },
     "payment_gateways": {
         "amazon": {
-            "email": "example@example.com",
-            "password": "password",
-            "totp_secret": "SomeRandomTOTPSecret"
+            "email": "",
+            "password": "",
+            "totp_secret": ""
         }
     },
     "shops": {
         "nbb": {
-            "phone_number": "'+12345678'",
+            "phone_number": "+49...",
+            "checkout": true
+        },
+        "asus": {
+            "checkout": true
+        },
+        "ceconomy": {
             "checkout": false
         }
     },
@@ -19,7 +25,11 @@
         "3090": 1500,
         "3080": 1250,
         "3070": 725,
-        "3060 Ti": 675,
-        "3060": 500
+        "3060 ti": 675,
+        "3060": 550
+    },
+    "telegram": {
+        "token": "",
+        "chat_id": ""
     }
 }

@@ -67,7 +67,7 @@ async function autoBuy(config, deal) {
         });
 
         //Wait for Checkout Page to load
-        await page.waitForNavigation();
+        await page.waitForNavigation({ timeout: 60000 });
 
         console.log("Step 4.1: Starting Checkout Process")
         await page.click('#amazon-pay-to-checkout');
