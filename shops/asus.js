@@ -75,7 +75,9 @@ async function autoBuy(config, deal) {
         //Final Checkout
         logger.info("Step 4.5: Finalizing Checkout")
         if (config.shops.asus.checkout) {
+            logger.info("Step 4.6: Clicking Checkout Button");
             await page.click('.is--icon-right');
+            logger.info("Purchase completed!");
         }
 
         //Allow for the page to be recorded

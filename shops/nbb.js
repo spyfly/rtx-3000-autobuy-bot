@@ -87,7 +87,9 @@ async function autoBuy(config, deal) {
         //Final Checkout
         logger.info("Step 4.3: Finalizing Checkout")
         if (config.shops.nbb.checkout) {
+          logger.log("Step 4.4: Clicking Checkout Button");
           await page.click('checkout_submit');
+          logger.info("Purchase completed!");
         }
 
         //Allow for the page to be recorded
