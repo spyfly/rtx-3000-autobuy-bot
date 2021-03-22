@@ -99,7 +99,7 @@ async function autoBuy(config, deal) {
       success = false;
     }
   } catch (err) {
-    logger.info(err);
+    logger.info(err.stack);
     success = false;
   }
 

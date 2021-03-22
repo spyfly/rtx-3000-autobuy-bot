@@ -81,7 +81,7 @@ async function autoBuy(config, deal) {
         //Allow for the page to be recorded
         await page.waitForTimeout(1000);
     } catch (err) {
-        logger.info(err);
+        logger.info(err.stack);
         sucess = false;
     }
 
