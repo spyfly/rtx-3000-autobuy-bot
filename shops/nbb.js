@@ -4,7 +4,10 @@ const amazonPay = require("../payment_gateways/amazon_pay.js")
 const imposter = require('../libs/imposter.js');
 
 async function autoBuy(config, deal) {
-  var sucess = true;
+  const logger = require("../libs/logger.js")
+  logger.init(config.user, 'nbb');
+
+  var success = true;
   var browser_options = {
     recordVideo: {
       dir: '/tmp/videos/rtx-3000-autobuy-bot'
@@ -12,7 +15,6 @@ async function autoBuy(config, deal) {
     headless: !config.general.debug
   };
 
-  console.log(config.user);
   const browserDetails = await imposter.getBrowserDetails(config.user);
   browser_options.userAgent = browserDetails.userAgent;
   browser_options.viewport = browserDetails.viewport;
@@ -25,11 +27,11 @@ async function autoBuy(config, deal) {
   const page = await context.newPage();
   const videoPath = await page.video().path();
   try {
-    console.log("Finished Setup!");
+    logger.info("Finished Setup!");
 
     await page.goto(deal.href + '/action/add_product', { timeout: 60000 });
 
-    console.log("Step 1: Adding Item to Cart");
+    logger.info("Step 1: Adding Item to Cart");
     const data = await page.content();
 
     //Checking Page Contents
@@ -37,43 +39,43 @@ async function autoBuy(config, deal) {
       message = "NBB Bot blocked by bot protection! UA: " + await page.evaluate(() => navigator.userAgent);;
       status = "blocked_by_bot_protection";
 
-      console.log(message)
+      logger.info(message)
       //Generate new User Agent String
       await imposter.generateNewDetails(user);
-      console.log("Generated new User Agent!");
-      sucess = false;
+      logger.info("Generated new User Agent!");
+      success = false;
 
     } else if (data.includes(deal.title)) {
 
-      console.log("Step 2.1: Going to Checkout");
+      logger.info("Step 2.1: Going to Checkout");
       await page.goto('https://www.notebooksbilliger.de/warenkorb')
 
       const basket = await page.content();
       if (basket.includes('Zur Zeit befinden sich keine Produkte im Warenkorb.')) {
-        console.log("Couldn't add product to basket!");
-        sucess = false;
+        logger.info("Couldn't add product to basket!");
+        success = false;
       } else {
 
-        console.log("Step 2.2: Clicking away cookies banner");
+        logger.info("Step 2.2: Clicking away cookies banner");
         try {
           await page.click('#uc-btn-accept-banner', { timeout: 500 })
         } catch { }
 
-        console.log("Step 3.1: Starting Amazon Pay")
+        logger.info("Step 3.1: Starting Amazon Pay")
         await page.click('.amazonpay-button-enabled');
 
         context.on('page', async (amazonPayPopup) => {
-          await amazonPay(amazonPayPopup, config.payment_gateways.amazon)
+          await amazonPay(amazonPayPopup, config.payment_gateways.amazon, logger)
         });
 
         //Wait for Checkout Page to load
         await page.waitForNavigation({ timeout: 60000 });
 
-        console.log("Step 4.1: Starting Checkout Process")
+        logger.info("Step 4.1: Starting Checkout Process")
         await page.click('#amazon-pay-to-checkout');
 
         //Filling in phone and confirming shipping
-        console.log("Step 4.2: Filling in Phone Number and confirming shipping")
+        logger.info("Step 4.2: Filling in Phone Number and confirming shipping")
         await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
         await page.click('[for="conditions"]', {
           position: {
@@ -83,7 +85,7 @@ async function autoBuy(config, deal) {
         await page.click('#button_bottom');
 
         //Final Checkout
-        console.log("Step 4.3: Finalizing Checkout")
+        logger.info("Step 4.3: Finalizing Checkout")
         if (config.shops.nbb.checkout) {
           await page.click('checkout_submit');
         }
@@ -94,17 +96,18 @@ async function autoBuy(config, deal) {
     } else {
       message = "Couldn't fetch NBB product page, maybe new bot protection?";
       status = "fetch_failure"
-      sucess = false;
+      success = false;
     }
   } catch (err) {
-    console.log(err);
-    sucess = false;
+    logger.info(err);
+    success = false;
   }
 
   await context.close();
   return {
-    success: sucess,
-    videoPath: videoPath
+    success: success,
+    videoPath: videoPath,
+    logFilePath: logger.getLogFile()
   }
 }
 module.exports = autoBuy;

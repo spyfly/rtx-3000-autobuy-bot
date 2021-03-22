@@ -86,6 +86,9 @@ async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
                 telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
                     caption: "Successfully purchased " + deal.title + " for " + deal.price + "€ at " + deal.href + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
                 })
+                telegram.sendDocument(config.telegram.chat_id, result.logFilePath, {
+                    caption: deal.title + ((retry != 0) ? ' | Try: ' + retry : '')
+                });
                 console.log(result)
             } else {
                 console.log(result);
@@ -93,6 +96,9 @@ async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
                 telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
                     caption: "Purchase Failure " + deal.title + " for " + deal.price + "€" + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
                 })
+                telegram.sendDocument(config.telegram.chat_id, result.logFilePath, {
+                    caption: deal.title + ((retry != 0) ? ' | Try: ' + retry : '')
+                });
                 executeAutoBuy(shop, config, deal, telegram, ++retry)
             }
         });
