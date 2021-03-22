@@ -1,8 +1,8 @@
 const { createLogger, format, transports } = require('winston');
 const fs = require('fs/promises');
 
-module.exports = {
-    init: function (user, shop) {
+module.exports = class {
+    constructor(user, shop) {
         this.logFileName = 'logs/' + shop + '_' + user + '_' + new Date().toJSON().split(".")[0];
         this.logger = createLogger({
             format: format.combine(
@@ -27,11 +27,13 @@ module.exports = {
                     )
                 })]
         });
-    },
-    info: function (message) {
+    }
+
+    info(message) {
         return this.logger.info(message);
-    },
-    getLogFile: function () {
+    }
+
+    getLogFile() {
         return this.logFileName;
     }
 }

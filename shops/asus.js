@@ -1,9 +1,9 @@
 const { chromium } = require('playwright');
 const amazonPay = require("../payment_gateways/amazon_pay.js")
+const Logger = require("../libs/logger.js")
 
 async function autoBuy(config, deal) {
-    const logger = require("../libs/logger.js")
-    logger.init(config.user, 'asus');
+    const logger = new Logger(config.user, 'asus');
 
     var sucess = true;
     var browser_options = {
