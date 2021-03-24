@@ -5,7 +5,7 @@ const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
 
 async function autoBuy(config, deal) {
-  const logger = new Logger(config.user, 'asus');
+  const logger = new Logger(config.user, 'nbb');
 
   var success = true;
   var browser_options = {

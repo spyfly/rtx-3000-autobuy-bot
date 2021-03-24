@@ -8,7 +8,7 @@ const app = express();
 const shops = {
     nbb: require('./shops/nbb.js'),
     asus: require('./shops/asus.js'),
-    ceconomy: require('./shops/ceconomy.js'),
+    ceconomy: require('./shops/ceconomy.js')
 }
 var users = {}
 var telegram = {}

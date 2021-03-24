@@ -1,2 +1,2 @@
 #!/bin/sh
-curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3080", "href": "https://www.mediamarkt.de/de/product/_asus-rog-strix-rtx3060ti-o8g-gaming-90yv0g02-m0na00-2701234.html", "price": "56.9"}}'   http://localhost:3000/trigger
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3060", "href": "https://www.mediamarkt.de/de/product/_asus-geforce-tuf-gaming-tuf-rtx-3060-o12g-gaming-12-gb-90yv0gc0-m0na00-2719146.html", "price": "56.9"}}'   http://localhost:3000/trigger
