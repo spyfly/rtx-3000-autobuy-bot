@@ -46,7 +46,7 @@ async function autoBuy(config, deal) {
                     logger.info(json.errors);
                     if (json.errors[0].extensions.title == "BASKET_ITEM_MAX_QUANTITY") {
                         //Redirect to checkout
-                        console.log("Reached max quantity, going to cart!")
+                        logger.info("Reached max quantity, going to cart!")
                         goToCart = true;
                         reload = false;
                     } else if (json.errors[0].message.includes("'Not all items have onlineStatus: ")) {
@@ -86,6 +86,9 @@ async function autoBuy(config, deal) {
                 const response = await request.response();
                 const json = await response.json();
                 const products = json.data.basket.content.checkout.mms.lineItems;
+                if (products.length == 0) {
+                    console.log("Cart is empty!!!");
+                }
                 for (const product of products) {
                     if (product.productId != productId) {
                         logger.info("Removing unwanted product in basket: " + product.fallbackTitle)
@@ -112,6 +115,7 @@ async function autoBuy(config, deal) {
                 if (!disabledCheckout) {
                     logger.info("Found no disabled checkout button, checking out!")
                     await page.click("[data-test=checkout-continue-desktop-enabled]");
+                    await page.waitForNavigation();
                     cartReloads = 1000;
                 } else {
                     logger.info("Reload cart again, can't check out yet!")
@@ -122,14 +126,41 @@ async function autoBuy(config, deal) {
             }
         }
 
+        logger.info(page.url())
         //Perform login procedure
         if (page.url().split(".de/")[1] == "checkout/login") {
-            console.log("Performing login!")
+            logger.info("Performing login!")
             await page.fill('[data-test="email"]', config.shops.ceconomy.email)
             await page.fill('[data-test="password"]', config.shops.ceconomy.password)
             await page.click('#mms-login-form__login-button')
             await page.waitForNavigation();
-            console.log("Login completed!");
+            logger.info("Login completed!");
+        }
+
+        //Select credit card payment
+        if (page.url().split(".de/")[1] == "checkout/payment") {
+            logger.info("Reached payment page!");
+            //Clicking Credit Card as Payment Method
+            await page.click('[data-test="payment-selection-CRECA"]');
+            logger.info("Selected credit card as payment method");
+            await page.click('[data-test="checkout-continue-desktop-enabled"]');
+            logger.info("Checking out!");
+        }
+
+        //Select credit card payment
+        if (page.url().split(".de/")[1] == "checkout/summary") {
+            logger.info("Reached summary page!");
+            //Delete invisible checkout btn
+            await page.waitForSelector('[data-test="checkout-continue-desktop-enabled"]', { state: 'attached' });
+            await page.evaluate(() => document.querySelector('[data-test="checkout-continue-desktop-enabled"]').outerHTML = "");
+            //Clicking Checkout and Pay
+            await page.click('[data-test="checkout-continue-desktop-enabled"] button');
+            await page.waitForNavigation();
+            logger.info("Checking out!");
+        }
+
+        if (page.url() == "https://www.computop-paygate.com/payssl.aspx") {
+            logger.info("Reached payment gateway, please store Credit Card Data first!")
         }
 
         //Allow for the page to be recorded
