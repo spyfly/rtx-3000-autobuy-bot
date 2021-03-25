@@ -9,7 +9,10 @@ async function autoBuy(config, deal) {
         recordVideo: {
             dir: '/tmp/videos/rtx-3000-autobuy-bot'
         },
-        headless: !config.general.debug
+        headless: !config.general.debug,
+        extraHTTPHeaders: {
+            DNT: "1"
+        }
     };
 
     if (config.general.userAgent) {
@@ -36,7 +39,6 @@ async function autoBuy(config, deal) {
                 return [res.status, await res.json()];
             }, productId);
 
-            delete json.errors;
             if (status == 200) {
                 if (json.errors) {
                     logger.info("Failed to add item to cart, trying again:")
@@ -73,7 +75,9 @@ async function autoBuy(config, deal) {
         if (page.url().split(".de/")[1] == "checkout") {
             var cartReloads = 0;
             while (cartReloads < 250) {
-                logger.info("Reached cart!")
+                logger.info("Reached cart")
+                await page.waitForSelector("[data-test=checkout-total]")
+                logger.info("Cart finished loading")
                 const disabledCheckout = await page.$("[data-test=checkout-continue-desktop-disabled]");
                 if (!disabledCheckout) {
                     logger.info("Found no disabled checkout button, checking out!")
@@ -91,7 +95,7 @@ async function autoBuy(config, deal) {
         //Allow for the page to be recorded
         await page.waitForTimeout(1000);
     } catch (err) {
-        logger.info(err);
+        logger.info(err.stack);
         success = false;
     }
 
