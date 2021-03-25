@@ -33,6 +33,7 @@ async function autoBuy(config, deal) {
         const productId = deal.href.match(/[0-9]{7}/)[0];
         var checkInterval = 2;
         var reload = true;
+        var goToCart = false;
         while (reload) {
             const [status, json] = await page.evaluate(async (pId) => {
                 const res = await fetch("https://" + location.host + "/api/v1/graphql", { "headers": { "apollographql-client-name": "pwa-client", "apollographql-client-version": "7.0.1", "content-type": "application/json", }, "body": "{\"operationName\":\"AddProduct\",\"variables\":{\"items\":[{\"productId\":\"" + pId + "\",\"outletId\":null,\"quantity\":1,\"serviceId\":null,\"warrantyId\":null}]},\"extensions\":{\"pwa\":{\"salesLine\":\"" + (location.host === 'www.saturn.de' ? 'Saturn' : 'Media') + "\",\"country\":\"" + "DE" + "\",\"language\":\"de\"},\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"404e7401c3363865cc3d92d5c5454ef7d382128c014c75f5fc39ed7ce549e2b9\"}}}", "method": "POST", "mode": "cors", "credentials": "include" });
@@ -45,8 +46,8 @@ async function autoBuy(config, deal) {
                     logger.info(json.errors);
                     if (json.errors[0].extensions.title == "BASKET_ITEM_MAX_QUANTITY") {
                         //Redirect to checkout
-                        logger.info("Going to cart!")
-                        await page.evaluate(() => window.location = "https://" + location.host + "/checkout");
+                        console.log("Reached max quantity, going to cart!")
+                        goToCart = true;
                         reload = false;
                     } else if (json.errors[0].message.includes("'Not all items have onlineStatus: ")) {
                         //Mark as sold out
@@ -59,8 +60,8 @@ async function autoBuy(config, deal) {
                         logger.info("Unknown Error: " + json.errors[0].message);
                     }
                 } else {
-                    logger.info("Going to cart!")
-                    await page.evaluate(() => window.location = "https://" + location.host + "/checkout");
+                    //Go to cart
+                    goToCart = true;
                     reload = false;
                 }
             } else if (status == 429) {
@@ -71,11 +72,40 @@ async function autoBuy(config, deal) {
             await page.waitForTimeout(1000 * checkInterval);
         }
 
-        logger.info(page.url())
-        if (page.url().split(".de/")[1] == "checkout") {
+        if (goToCart) {
+            logger.info("Going to cart!")
+            const cartUrl = await page.evaluate(() => "https://" + location.host + "/checkout");
+            await page.goto(cartUrl, { waitUntil: 'domcontentloaded' })
+
             var cartReloads = 0;
             while (cartReloads < 250) {
                 logger.info("Reached cart")
+
+                //Wait for Cart to load
+                const request = await page.waitForRequest(request => request.url().includes("/api/v1/graphql?operationName=GetBasket"));
+                const response = await request.response();
+                const json = await response.json();
+                const products = json.data.basket.content.checkout.mms.lineItems;
+                for (const product of products) {
+                    if (product.productId != productId) {
+                        logger.info("Removing unwanted product in basket: " + product.fallbackTitle)
+                        const [status, json] = await page.evaluate(async (cartId) => {
+                            const res = await fetch("https://www.mediamarkt.de/api/v1/graphql", {
+                                "credentials": "include",
+                                "headers": {
+                                    "content-type": "application/json",
+                                    "apollographql-client-name": "pwa-client",
+                                    "apollographql-client-version": "7.1.2",
+                                },
+                                "body": "{\"operationName\":\"CancelLineItem\",\"variables\":{\"itemId\":\"" + cartId + "\",\"productType\":\"MMS\"},\"extensions\":{\"pwa\":{\"salesLine\":\"" + (location.host === 'www.saturn.de' ? 'Saturn' : 'Media') + "\",\"country\":\"DE\",\"language\":\"de\"},\"persistedQuery\":{\"version\":1,\"sha256Hash\":\"a988adea36d1fde4549a482351f3b24b58b0ab42471677f485750c46fd8ddc40\"}}}",
+                                "method": "POST",
+                                "mode": "cors"
+                            });
+                            return [res.status, await res.json()];
+                        }, product.id);
+                    }
+                }
+
                 await page.waitForSelector("[data-test=checkout-total]")
                 logger.info("Cart finished loading")
                 const disabledCheckout = await page.$("[data-test=checkout-continue-desktop-disabled]");
@@ -87,9 +117,19 @@ async function autoBuy(config, deal) {
                     logger.info("Reload cart again, can't check out yet!")
                     cartReloads++;
                     await page.waitForTimeout(1000 * checkInterval);
-                    await page.reload();
+                    await page.reload({ waitUntil: 'domcontentloaded' });
                 }
             }
+        }
+
+        //Perform login procedure
+        if (page.url().split(".de/")[1] == "checkout/login") {
+            console.log("Performing login!")
+            await page.fill('[data-test="email"]', config.shops.ceconomy.email)
+            await page.fill('[data-test="password"]', config.shops.ceconomy.password)
+            await page.click('#mms-login-form__login-button')
+            await page.waitForNavigation();
+            console.log("Login completed!");
         }
 
         //Allow for the page to be recorded

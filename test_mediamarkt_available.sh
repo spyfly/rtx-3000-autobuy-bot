@@ -1,2 +1,2 @@
 #!/bin/sh
-curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3060", "href": "https://www.mediamarkt.de/de/product/_palit-ne63060019k9-190ad-rtx-3060-dual-12gb-gddr6-2719457.html", "price": "56.9"}}'   http://localhost:3000/trigger
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"ceconomy","deal": {"title": "RTX 3060", "href": "https://www.mediamarkt.de/de/product/_sandisk-cruzer-ultra-1735138.html", "price": "56.9"}}'   http://localhost:3000/trigger
