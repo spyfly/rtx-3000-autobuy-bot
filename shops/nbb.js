@@ -29,9 +29,15 @@ async function autoBuy(config, deal) {
   try {
     logger.info("Finished Setup!");
 
-    await page.goto(deal.href + '/action/add_product', { timeout: 60000 });
+    logger.info("Step 1.1: Loading Product Page");
+    await page.goto(deal.href, { timeout: 60000 });
 
-    logger.info("Step 1: Adding Item to Cart");
+    logger.info("Step 1.2: Clicking away cookies banner");
+    try {
+      await page.click('#uc-btn-accept-banner', { timeout: 500 })
+    } catch { }
+
+    logger.info("Step 1.3: Adding Item to Cart");
     const data = await page.content();
 
     //Checking Page Contents
@@ -46,6 +52,8 @@ async function autoBuy(config, deal) {
       success = false;
 
     } else if (data.includes(deal.title)) {
+      await page.click('.shopping_cart_btn');
+      logger.info("Step 1.4: Added Item to Cart");
 
       logger.info("Step 2.1: Going to Checkout");
       await page.goto('https://www.notebooksbilliger.de/warenkorb')
@@ -55,12 +63,6 @@ async function autoBuy(config, deal) {
         logger.info("Couldn't add product to basket!");
         success = false;
       } else {
-
-        logger.info("Step 2.2: Clicking away cookies banner");
-        try {
-          await page.click('#uc-btn-accept-banner', { timeout: 500 })
-        } catch { }
-
         logger.info("Step 3.1: Starting Amazon Pay")
         await page.click('.amazonpay-button-enabled');
 
