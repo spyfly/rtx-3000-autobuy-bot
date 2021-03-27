@@ -40,22 +40,37 @@ async function autoBuy(config, deal) {
       logger.info("Step 1.3: Product has been added to cart!");
       if (response.headers()['location'].includes('action/productpopup')) {
         logger.info("Step 2.1: Going to Checkout");
-        await page.goto('https://www.notebooksbilliger.de/warenkorb')
+        const basket = page.goto('https://www.notebooksbilliger.de/kasse', { timeout: 0 });
+        const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse');
+        const status = response.status();
+        const location = response.headers()['location'];
+        console.log("Status: " + status + " | Location: " + location)
 
-        const basket = await page.content();
-        if (basket.includes('Zur Zeit befinden sich keine Produkte im Warenkorb.')) {
-          logger.info("Couldn't add product to basket!");
+        if (status == 302 && location == 'https://www.notebooksbilliger.de/warenkorb') {
+          logger.info("Error: Couldn't add product to basket!");
+          await basket;
           success = false;
         } else {
           logger.info("Step 2.2: Clicking away cookies banner");
           try {
-            await page.click('#uc-btn-accept-banner', { timeout: 500 })
+            await page.click('#uc-btn-accept-banner', { timeout: 3000 })
           } catch {
             logger.info("Step 2.2: Failed clicking away cookies!");
           }
 
+          page.click('#idpayamazonpay');
+          await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
+          await page.click('[for="conditions"]', {
+            position: {
+              x: 10, y: 10
+            }
+          });
+
+          //page.waitForTimeout(100000);
+
           logger.info("Step 3.1: Starting Amazon Pay")
-          await page.click('.amazonpay-button-enabled');
+          //await page.click('.amazonpay-button-enabled');
+          await page.click('#button_bottom', { noWaitAfter: true });
 
           context.on('page', async (amazonPayPopup) => {
             await amazonPay(amazonPayPopup, config.payment_gateways.amazon, logger)
@@ -65,10 +80,18 @@ async function autoBuy(config, deal) {
           await page.waitForNavigation({ timeout: 60000 });
 
           logger.info("Step 4.1: Starting Checkout Process")
-          await page.click('#amazon-pay-to-checkout');
+          //Amazon Pay Confirm Page
+          if (page.url().includes('https://www.notebooksbilliger.de/kasse/amazonpay')) {
+            await page.click('#amazon-pay-to-checkout');
+          }
 
-          if (page.url() != "https://www.notebooksbilliger.de/warenkorb") {
-            //Filling in phone and confirming shipping
+          if (page.url() == "https://www.notebooksbilliger.de/warenkorb") {
+            logger.info("Error: Failed transmitting Amazon Pay Session Data!");
+            success = false;
+          }
+
+          //Filling in phone and confirming shipping
+          if (page.url() == 'https://www.notebooksbilliger.de/kasse') {
             logger.info("Step 4.2: Filling in Phone Number and confirming shipping")
             await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
             await page.click('[for="conditions"]', {
@@ -77,17 +100,17 @@ async function autoBuy(config, deal) {
               }
             });
             await page.click('#button_bottom');
+          }
 
-            //Final Checkout
+          //Final Checkout
+          if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
             logger.info("Step 4.3: Finalizing Checkout")
             if (config.shops.nbb.checkout) {
               logger.log("Step 4.4: Clicking Checkout Button");
               await page.click('checkout_submit');
               logger.info("Purchase completed!");
             }
-          } else {
-            logger.info("Error: Failed transmitting Amazon Pay Session Data!");
-            success = false;
+            success = true;
           }
 
           //Allow for the page to be recorded
