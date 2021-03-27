@@ -29,77 +29,76 @@ async function autoBuy(config, deal) {
   try {
     logger.info("Finished Setup!");
 
-    logger.info("Step 1.1: Loading Product Page");
-    await page.goto(deal.href, { timeout: 60000 });
+    logger.info("Step 1.1: Generating add to cart Button");
+    await page.setContent(`<form method="post" action="` + deal.href + `/action/add_product"><button type="submit" id="add_to_cart">In den Warenkorb</button></form>`)
 
-    logger.info("Step 1.2: Clicking away cookies banner");
-    try {
-      await page.click('#uc-btn-accept-banner', { timeout: 500 })
-    } catch { }
+    logger.info("Step 1.2: Adding Item to Cart");
+    await page.click('#add_to_cart', { noWaitAfter: true });
 
-    logger.info("Step 1.3: Adding Item to Cart");
-    const data = await page.content();
+    const response = await page.waitForResponse(deal.href + '/action/add_product');
+    if (response.status() == 302) {
+      logger.info("Step 1.3: Product has been added to cart!");
+      if (response.headers()['location'].includes('action/productpopup')) {
+        logger.info("Step 2.1: Going to Checkout");
+        await page.goto('https://www.notebooksbilliger.de/warenkorb')
 
-    //Checking Page Contents
-    if (data.includes("client has been blocked by bot protection.")) {
-      message = "NBB Bot blocked by bot protection! UA: " + await page.evaluate(() => navigator.userAgent);;
-      status = "blocked_by_bot_protection";
-
-      logger.info(message)
-      //Generate new User Agent String
-      await imposter.generateNewDetails(user);
-      logger.info("Generated new User Agent!");
-      success = false;
-
-    } else if (data.includes(deal.title)) {
-      await page.click('.shopping_cart_btn');
-      logger.info("Step 1.4: Added Item to Cart");
-
-      logger.info("Step 2.1: Going to Checkout");
-      await page.goto('https://www.notebooksbilliger.de/warenkorb')
-
-      const basket = await page.content();
-      if (basket.includes('Zur Zeit befinden sich keine Produkte im Warenkorb.')) {
-        logger.info("Couldn't add product to basket!");
-        success = false;
-      } else {
-        logger.info("Step 3.1: Starting Amazon Pay")
-        await page.click('.amazonpay-button-enabled');
-
-        context.on('page', async (amazonPayPopup) => {
-          await amazonPay(amazonPayPopup, config.payment_gateways.amazon, logger)
-        });
-
-        //Wait for Checkout Page to load
-        await page.waitForNavigation({ timeout: 60000 });
-
-        logger.info("Step 4.1: Starting Checkout Process")
-        await page.click('#amazon-pay-to-checkout');
-
-        //Filling in phone and confirming shipping
-        logger.info("Step 4.2: Filling in Phone Number and confirming shipping")
-        await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
-        await page.click('[for="conditions"]', {
-          position: {
-            x: 10, y: 10
+        const basket = await page.content();
+        if (basket.includes('Zur Zeit befinden sich keine Produkte im Warenkorb.')) {
+          logger.info("Couldn't add product to basket!");
+          success = false;
+        } else {
+          logger.info("Step 2.2: Clicking away cookies banner");
+          try {
+            await page.click('#uc-btn-accept-banner', { timeout: 500 })
+          } catch {
+            logger.info("Step 2.2: Failed clicking away cookies!");
           }
-        });
-        await page.click('#button_bottom');
 
-        //Final Checkout
-        logger.info("Step 4.3: Finalizing Checkout")
-        if (config.shops.nbb.checkout) {
-          logger.log("Step 4.4: Clicking Checkout Button");
-          await page.click('checkout_submit');
-          logger.info("Purchase completed!");
+          logger.info("Step 3.1: Starting Amazon Pay")
+          await page.click('.amazonpay-button-enabled');
+
+          context.on('page', async (amazonPayPopup) => {
+            await amazonPay(amazonPayPopup, config.payment_gateways.amazon, logger)
+          });
+
+          //Wait for Checkout Page to load
+          await page.waitForNavigation({ timeout: 60000 });
+
+          logger.info("Step 4.1: Starting Checkout Process")
+          await page.click('#amazon-pay-to-checkout');
+
+          if (page.url() != "https://www.notebooksbilliger.de/warenkorb") {
+            //Filling in phone and confirming shipping
+            logger.info("Step 4.2: Filling in Phone Number and confirming shipping")
+            await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
+            await page.click('[for="conditions"]', {
+              position: {
+                x: 10, y: 10
+              }
+            });
+            await page.click('#button_bottom');
+
+            //Final Checkout
+            logger.info("Step 4.3: Finalizing Checkout")
+            if (config.shops.nbb.checkout) {
+              logger.log("Step 4.4: Clicking Checkout Button");
+              await page.click('checkout_submit');
+              logger.info("Purchase completed!");
+            }
+          } else {
+            logger.info("Error: Failed transmitting Amazon Pay Session Data!");
+            success = false;
+          }
+
+          //Allow for the page to be recorded
+          await page.waitForTimeout(1000);
         }
-
-        //Allow for the page to be recorded
-        await page.waitForTimeout(1000);
+      } else {
+        logger.info("Error: Redirected to unknown URL: " + response.headers()['location']);
+        success = false;
       }
     } else {
-      message = "Couldn't fetch NBB product page, maybe new bot protection?";
-      status = "fetch_failure"
+      logger.info("Error: Unknown Response Status: " + response.status());
       success = false;
     }
   } catch (err) {
