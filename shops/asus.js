@@ -40,6 +40,11 @@ async function autoBuy(config, deal) {
         logger.info("Step 2: Waiting for Amazon Pay Button to appear")
         while (amznPayBtnAppeared < 10 && amznPayBtnAppeared != -1) {
             try {
+                //Add Monster if we are already at checkout page
+                //await page.click('#add-voucher--trigger', { timeout: 5000 });
+                //await page.fill('.add-voucher--field', 'MONSTER', { timeout: 5000 });
+                //await page.click('.add-voucher--button', { timeout: 5000 });
+                //Add Monster end
                 await page.waitForSelector(".amazonpay-button-inner-image", { timeout: 5000 });
                 logger.info("Step 3.1: Clicking Amazon Pay Button")
                 await page.evaluate(() => document.querySelector(".amazonpay-button-inner-image").click());
@@ -77,7 +82,9 @@ async function autoBuy(config, deal) {
         if (config.shops.asus.checkout) {
             logger.info("Step 4.6: Clicking Checkout Button");
             await page.click('.is--icon-right');
+            await page.waitForNavigation();
             logger.info("Purchase completed!");
+            await page.waitForTimeout(10000);
         }
 
         //Allow for the page to be recorded
