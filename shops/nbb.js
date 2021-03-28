@@ -109,6 +109,8 @@ async function autoBuy(config, deal) {
               logger.log("Step 4.4: Clicking Checkout Button");
               await page.click('checkout_submit');
               logger.info("Purchase completed!");
+              await page.waitForTimeout(15000);
+              logger.info("Waited for 15s to make sure transaction completes!");
             }
             success = true;
           }
