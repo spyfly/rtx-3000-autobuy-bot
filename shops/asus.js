@@ -30,7 +30,7 @@ async function autoBuy(config, deal) {
 
         logger.info("Step 1.1: Clicking away cookies banner");
         try {
-            await page.click('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection', { timeout: 500 })
+            await page.click('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection', { timeout: 1000 })
         } catch { }
 
         logger.info("Step 1.2: Adding Item to Cart");

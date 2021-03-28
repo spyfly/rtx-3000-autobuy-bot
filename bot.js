@@ -48,7 +48,7 @@ fs.readdir('configs/', function (err, files) {
             if (config.shops[shop]) {
                 var match = false;
                 for (const [card, price_limit] of Object.entries(config.price_limits).reverse()) {
-                    if (deal.title.toLowerCase().includes(card)) {
+                    if (deal.title.toLowerCase().includes(card) || deal.title.toLowerCase().includes(card.replace(' ', ''))) {
                         match = true;
                         console.log('"' + deal.title + '" matched card: ' + card)
                         if (deal.price <= price_limit) {
