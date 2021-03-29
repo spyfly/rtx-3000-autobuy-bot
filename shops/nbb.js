@@ -110,7 +110,10 @@ async function autoBuy(config, deal) {
               await page.click('#checkout_submit');
               logger.info("Purchase completed!");
               await page.waitForNavigation()
-              logger.info("Purchase completed!");
+              logger.info("Reached Amazon Pay Page!");
+              await page.waitForNavigation({ url: /notebooksbilliger\.de/g, timeout: 60000 });
+              logger.info("Reached NBB Success Page!");
+              await page.waitForTimeout(5000);
             }
             success = true;
           }
