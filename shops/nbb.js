@@ -44,7 +44,7 @@ async function autoBuy(config, deal) {
         const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse');
         const status = response.status();
         const location = response.headers()['location'];
-        console.log("Status: " + status + " | Location: " + location)
+        logger.info("Status: " + status + " | Location: " + location)
 
         if (status == 302 && location == 'https://www.notebooksbilliger.de/warenkorb') {
           logger.info("Error: Couldn't add product to basket!");
@@ -106,11 +106,11 @@ async function autoBuy(config, deal) {
           if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
             logger.info("Step 4.3: Finalizing Checkout")
             if (config.shops.nbb.checkout) {
-              logger.log("Step 4.4: Clicking Checkout Button");
-              await page.click('checkout_submit');
+              logger.info("Step 4.4: Clicking Checkout Button");
+              await page.click('#checkout_submit');
               logger.info("Purchase completed!");
-              await page.waitForTimeout(15000);
-              logger.info("Waited for 15s to make sure transaction completes!");
+              await page.waitForNavigation()
+              logger.info("Purchase completed!");
             }
             success = true;
           }
