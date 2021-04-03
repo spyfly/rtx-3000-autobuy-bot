@@ -26,15 +26,19 @@ async function autoBuy(config, deal) {
     logger.info("Finished Setup!");
 
     try {
-        await page.goto(deal.href);
+        await page.goto(deal.href, { timeout: 120000 });
 
         logger.info("Step 1.1: Clicking away cookies banner");
-        try {
-            await page.click('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection', { timeout: 1000 })
-        } catch { }
+        page.click('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection', { timeout: 0 }).then(
+            () => {
+                logger.info("Clicked away cookies!");
+            }, () => {
+                logger.info("Failed clicking away cookies!");
+            }
+        )
 
         logger.info("Step 1.2: Adding Item to Cart");
-        await page.click(".buybox--button");
+        await page.click(".buybox--button", { timeout: 120000 });
 
         var amznPayBtnAppeared = 0;
         logger.info("Step 2: Waiting for Amazon Pay Button to appear")
@@ -62,27 +66,27 @@ async function autoBuy(config, deal) {
         //Amazon Pay Finish
 
         //Wait for Checkout Page to load
-        await page.waitForNavigation({ timeout: 60000 });
+        await page.waitForNavigation({ timeout: 120000 });
         logger.info("Step 4.1: Starting Checkout Process")
 
         //Confirming address
         logger.info("Step 4.2: Confirming Address")
-        await page.click('.bestit-amazon-pay--widget-single--button-next:not(.is--disabled)');
+        await page.click('.bestit-amazon-pay--widget-single--button-next:not(.is--disabled)', { timeout: 120000 });
 
         //Confirming payment method, but wait for button to become active first
         logger.info("Step 4.3: Confirming Payment Method")
-        await page.click('.bestit-amazon-pay--widget-single--button-next:not(.is--disabled)');
+        await page.click('.bestit-amazon-pay--widget-single--button-next:not(.is--disabled)', { timeout: 120000 });
 
         //Accept the damn AGBs
         logger.info("Step 4.4: Accepting AGBs")
-        await page.click('#sAGB');
+        await page.click('#sAGB', { timeout: 120000 });
 
         //Final Checkout
         logger.info("Step 4.5: Finalizing Checkout")
         if (config.shops.asus.checkout) {
             logger.info("Step 4.6: Clicking Checkout Button");
-            await page.click('.is--icon-right');
-            await page.waitForNavigation();
+            await page.click('.is--icon-right', { timeout: 120000 });
+            await page.waitForNavigation({ timeout: 120000 });
             logger.info("Purchase completed!");
             await page.waitForTimeout(10000);
         }
