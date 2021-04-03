@@ -52,11 +52,11 @@ async function autoBuy(config, deal) {
           success = false;
         } else {
           logger.info("Step 2.2: Clicking away cookies banner");
-          try {
-            await page.click('#uc-btn-accept-banner', { timeout: 3000 })
-          } catch {
+          page.click('#uc-btn-accept-banner', { timeout: 0 }).then(() => {
+            logger.info("Step 2.2: Clicked away cookies!");
+          }, () => {
             logger.info("Step 2.2: Failed clicking away cookies!");
-          }
+          });
 
           page.click('#idpayamazonpay');
           await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
