@@ -4,6 +4,19 @@ const amazonPay = require("../payment_gateways/amazon_pay.js")
 const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
 
+async function clickAwayCookies(page, logger, retry = 0) {
+  if (retry < 3) {
+    logger.info("Step 2.2: Clicking away cookies banner | Try: " + ++retry);
+    page.click('#uc-btn-accept-banner', { timeout: 0 }).then(() => {
+      logger.info("Step 2.2: Clicked away cookies!");
+    }, () => {
+      clickAwayCookies(page, logger, retry);
+    });
+  } else {
+    logger.info("Step 2.2: Failed clicking away cookies!");
+  }
+}
+
 async function autoBuy(config, deal) {
   const logger = new Logger(config.user, 'nbb');
 
@@ -38,10 +51,11 @@ async function autoBuy(config, deal) {
     const response = await page.waitForResponse(deal.href + '/action/add_product');
     if (response.status() == 302) {
       logger.info("Step 1.3: Product has been added to cart!");
-      if (response.headers()['location'].includes('action/productpopup')) {
+      const productpopupLocation = response.headers()['location'];
+      if (productpopupLocation.includes('action/productpopup')) {
         logger.info("Step 2.1: Going to Checkout");
-        const basket = page.goto('https://www.notebooksbilliger.de/kasse', { timeout: 0 });
-        const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse');
+        const basket = page.goto('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1', { timeout: 0 });
+        const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1');
         const status = response.status();
         const location = response.headers()['location'];
         logger.info("Status: " + status + " | Location: " + location)
@@ -51,15 +65,30 @@ async function autoBuy(config, deal) {
           await basket;
           success = false;
         } else {
-          logger.info("Step 2.2: Clicking away cookies banner");
-          page.click('#uc-btn-accept-banner', { timeout: 0 }).then(() => {
-            logger.info("Step 2.2: Clicked away cookies!");
-          }, () => {
-            logger.info("Step 2.2: Failed clicking away cookies!");
-          });
+          clickAwayCookies(page, logger);
 
+          await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+          if (page.url().includes('https://www.notebooksbilliger.de/kasse/anmelden')) {
+            logger.info("Step 2.3: Performing NBB Login")
+            await page.fill('#f_email_address', config.shops.nbb.email)
+            await page.fill('#f_password', config.shops.nbb.password)
+            await page.click('[for="set_rememberme"]');
+            await page.click('[name="login"]', { noWaitAfter: true });
+            await page.waitForResponse(/notebooksbilliger\.de/g);
+            await page.goto('https://www.notebooksbilliger.de/kasse', { timeout: 60000 });
+          }
+
+          logger.info("Step 3.1: Checking out via Credit Card")
+          await page.click('#idpaycreditcard');
+          await page.click('[for="conditions"]', {
+            position: {
+              x: 10, y: 10
+            }
+          });
+          await page.click('#button_bottom');
+
+          /*
           page.click('#idpayamazonpay');
-          await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
           await page.click('[for="conditions"]', {
             position: {
               x: 10, y: 10
@@ -88,19 +117,7 @@ async function autoBuy(config, deal) {
           if (page.url() == "https://www.notebooksbilliger.de/warenkorb") {
             logger.info("Error: Failed transmitting Amazon Pay Session Data!");
             success = false;
-          }
-
-          //Filling in phone and confirming shipping
-          if (page.url() == 'https://www.notebooksbilliger.de/kasse') {
-            logger.info("Step 4.2: Filling in Phone Number and confirming shipping")
-            await page.fill('[name="newbilling[telephone]"]', config.shops.nbb.phone_number)
-            await page.click('[for="conditions"]', {
-              position: {
-                x: 10, y: 10
-              }
-            });
-            await page.click('#button_bottom');
-          }
+          }*/
 
           //Final Checkout
           if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
