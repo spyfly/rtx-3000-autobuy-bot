@@ -10,6 +10,7 @@ const shops = {
     asus: require('./shops/asus.js'),
     ceconomy: require('./shops/ceconomy.js')
 }
+const messagesWeb = require('./modules/messages_web.js')
 var users = {}
 var telegram = {}
 
@@ -28,7 +29,28 @@ fs.readdir('configs/', function (err, files) {
         var data = JSON.parse(raw);
         data.user = user;
         users[user] = data;
-        telegram[user] = new TelegramBot(data.telegram.token, { polling: false });
+        telegram[user] = new TelegramBot(data.telegram.token, { polling: true });
+        telegram[user].on('message', (msg) => {
+            const chatId = msg.chat.id;
+            if (chatId == data.telegram.chat_id) {
+                // send a message to the chat acknowledging receipt of their message
+                if (msg.text == "/smssetup") {
+                    messagesWeb.authenticate(data, telegram[user]);
+                } else if (msg.text == "/tantest") {
+                    messagesWeb.waitForTan(data).then(
+                        (res) => {
+                            if (res.success)
+                                telegram[user].sendMessage(chatId, 'Received TAN: ' + res.tan)
+                            else
+                                telegram[user].sendMessage(chatId, 'Failed retrieving TAN!');
+                        },
+                        () => {
+                            telegram[user].sendMessage(chatId, 'Failed retrieving TAN!');
+                        }
+                    );
+                }
+            }
+        });
     }
 
     app.use(bodyParser.json())
