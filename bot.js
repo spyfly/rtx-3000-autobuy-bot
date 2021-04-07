@@ -36,50 +36,51 @@ fs.readdir('configs/', function (err, files) {
         if (telegram == null)
             telegram = new TelegramBot(data.telegram.token, { polling: true });
         handleTelegramMessages(telegram, data);
+    }
 
-        app.use(bodyParser.json())
+    app.use(bodyParser.json())
 
-        app.post('/trigger', function (req, res) {
-            const json = req.body;
-            executeJobs(json, res);
-            res.send("");
-        })
+    app.post('/trigger', function (req, res) {
+        const json = req.body;
+        executeJobs(json, res);
+        res.send("");
+    })
 
-        async function executeJobs(json) {
-            console.log(JSON.stringify(json));
+    async function executeJobs(json) {
+        console.log(JSON.stringify(json));
 
-            for (const [user, config] of Object.entries(users)) {
-                const shop = json.shop;
-                const deal = json.deal;
-                if (config.shops[shop]) {
-                    var match = false;
-                    for (const [card, price_limit] of Object.entries(config.price_limits).reverse()) {
-                        if (deal.title.toLowerCase().includes(card) || deal.title.toLowerCase().includes(card.replace(' ', ''))) {
-                            match = true;
-                            console.log('"' + deal.title + '" matched card: ' + card)
-                            if (deal.price <= price_limit) {
-                                console.log(deal.price + " matched price_limit of " + price_limit)
-                                console.log("Executing AutoBuy for " + shop + " for " + user);
-                                executeAutoBuy(shop, config, deal, telegram);
-                            } else {
-                                console.log(deal.price + " didn't meet price_limit of " + price_limit)
-                            }
-                            break;
+        for (const [user, config] of Object.entries(users)) {
+            const shop = json.shop;
+            const deal = json.deal;
+            if (config.shops[shop]) {
+                var match = false;
+                for (const [card, price_limit] of Object.entries(config.price_limits).reverse()) {
+                    if (deal.title.toLowerCase().includes(card) || deal.title.toLowerCase().includes(card.replace(' ', ''))) {
+                        match = true;
+                        console.log('"' + deal.title + '" matched card: ' + card)
+                        if (deal.price <= price_limit) {
+                            console.log(deal.price + " matched price_limit of " + price_limit)
+                            console.log("Executing AutoBuy for " + shop + " for " + user);
+                            executeAutoBuy(shop, config, deal, telegram);
+                        } else {
+                            console.log(deal.price + " didn't meet price_limit of " + price_limit)
                         }
+                        break;
                     }
-                    if (!match)
-                        console.log('"' + deal.title + '" didn\'t match any listed card!')
-                } else {
-                    console.log("Store not found in config");
                 }
+                if (!match)
+                    console.log('"' + deal.title + '" didn\'t match any listed card!')
+            } else {
+                console.log("Store not found in config");
             }
         }
+    }
 
-        var port = 3000;
-        app.listen(port, () => {
-            console.log(`RTX 3000 AutoBuy Bot listening at http://localhost:${port}`)
-        })
-    });
+    var port = 3000;
+    app.listen(port, () => {
+        console.log(`RTX 3000 AutoBuy Bot listening at http://localhost:${port}`)
+    })
+});
 
 async function handleTelegramMessages(telegramBot, data) {
     telegramBot.on('message', (msg) => {
