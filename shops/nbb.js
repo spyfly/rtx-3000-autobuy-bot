@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
-const amazonPay = require("../payment_gateways/amazon_pay.js")
+const visaLbb = require("../payment_gateways/visa_lbb.js")
 const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
 const messagesWeb = require('../modules/messages_web.js')
@@ -134,34 +134,7 @@ async function autoBuy(config, deal) {
         }
         await page.waitForNavigation()
         logger.info("Reached Credit Card Checkout Page!");
-        page.waitForSelector('#iframeContainerFull').then(
-          async (ccIframe) => {
-            const frame = await ccIframe.contentFrame();
-            console.log("Retrieved 3DS Frame!");
-            // Handle SMS-TAN
-            frame.waitForSelector('#formOtp').then(async () => {
-              console.log("VISA wants SMS-TAN, retrieving!");
-              const response = await messagesWeb.waitForTan(config, context);
-              if (response.success) {
-                await frame.fill('#challengeDataEntry', response.tan);
-                await frame.click("#confirm")
-                console.log("Filled in SMS-TAN!");
-
-                // Handle VISA Online PIN
-                frame.waitForSelector('#formOtp').then(async () => {
-                  console.log("VISA wants Online PIN!");
-                  await frame.fill('#challengeDataEntry', config.payment_gateways.lbb_visa.online_pin);
-                  await frame.click("#confirm")
-                  console.log("Filled in Online-PIN!");
-                });
-                //Online PIN Handling End
-
-              } else {
-                console.log("Failed retrieving SMS-TAN!")
-              }
-            });
-          }
-        )
+        visaLbb.handle3DSecure(config, page, context);
 
         await page.waitForNavigation({ url: /notebooksbilliger\.de/g, timeout: 180000 });
         logger.info("Reached NBB Success Page!");
