@@ -10,7 +10,8 @@ const shops = {
     asus: require('./shops/asus.js'),
     ceconomy: require('./shops/ceconomy.js')
 }
-const messagesWeb = require('./modules/messages_web.js')
+const messagesWeb = require('./modules/messages_web.js');
+const e = require('express');
 var users = {}
 var telegram = {}
 
@@ -27,30 +28,13 @@ fs.readdir('configs/', function (err, files) {
         if (user == "example")
             continue;
         var data = JSON.parse(raw);
+        if (data.general.enabled == false)
+            continue;
+
         data.user = user;
         users[user] = data;
         telegram[user] = new TelegramBot(data.telegram.token, { polling: true });
-        telegram[user].on('message', (msg) => {
-            const chatId = msg.chat.id;
-            if (chatId == data.telegram.chat_id) {
-                // send a message to the chat acknowledging receipt of their message
-                if (msg.text == "/smssetup") {
-                    messagesWeb.authenticate(data, telegram[user]);
-                } else if (msg.text == "/tantest") {
-                    messagesWeb.waitForTan(data).then(
-                        (res) => {
-                            if (res.success)
-                                telegram[user].sendMessage(chatId, 'Received TAN: ' + res.tan)
-                            else
-                                telegram[user].sendMessage(chatId, 'Failed retrieving TAN!');
-                        },
-                        () => {
-                            telegram[user].sendMessage(chatId, 'Failed retrieving TAN!');
-                        }
-                    );
-                }
-            }
-        });
+        handleTelegramMessages(telegram[user], data);
     }
 
     app.use(bodyParser.json())
@@ -96,6 +80,25 @@ fs.readdir('configs/', function (err, files) {
         console.log(`RTX 3000 AutoBuy Bot listening at http://localhost:${port}`)
     })
 });
+
+async function handleTelegramMessages(telegramBot, data) {
+    telegramBot.on('message', (msg) => {
+        const chatId = msg.chat.id;
+        console.log(data.telegram.chat_id);
+        if (chatId == data.telegram.chat_id) {
+            // send a message to the chat acknowledging receipt of their message
+            if (msg.text == "/smssetup") {
+                try {
+                    messagesWeb.authenticate(data, telegramBot);
+                } catch (err) {
+
+                }
+            }
+        } else {
+            console.log("Received Message from unknown chat_id: " + chatId)
+        }
+    });
+}
 
 async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
     //var shop, config, deal, retry;

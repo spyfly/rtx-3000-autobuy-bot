@@ -3,6 +3,7 @@ const fs = require('fs');
 const amazonPay = require("../payment_gateways/amazon_pay.js")
 const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
+const messagesWeb = require('../modules/messages_web.js')
 
 async function clickAwayCookies(page, logger, retry = 0) {
   if (retry < 3) {
@@ -78,62 +79,7 @@ async function autoBuy(config, deal) {
             await page.goto('https://www.notebooksbilliger.de/kasse', { timeout: 60000 });
           }
 
-          logger.info("Step 3.1: Checking out via Credit Card")
-          await page.click('#idpaycreditcard');
-          await page.click('[for="conditions"]', {
-            position: {
-              x: 10, y: 10
-            }
-          });
-          await page.click('#button_bottom');
-
-          /*
-          page.click('#idpayamazonpay');
-          await page.click('[for="conditions"]', {
-            position: {
-              x: 10, y: 10
-            }
-          });
-
-          //page.waitForTimeout(100000);
-
-          logger.info("Step 3.1: Starting Amazon Pay")
-          //await page.click('.amazonpay-button-enabled');
-          await page.click('#button_bottom', { noWaitAfter: true });
-
-          context.on('page', async (amazonPayPopup) => {
-            await amazonPay(amazonPayPopup, config.payment_gateways.amazon, logger)
-          });
-
-          //Wait for Checkout Page to load
-          await page.waitForNavigation({ timeout: 60000 });
-
-          logger.info("Step 4.1: Starting Checkout Process")
-          //Amazon Pay Confirm Page
-          if (page.url().includes('https://www.notebooksbilliger.de/kasse/amazonpay')) {
-            await page.click('#amazon-pay-to-checkout');
-          }
-
-          if (page.url() == "https://www.notebooksbilliger.de/warenkorb") {
-            logger.info("Error: Failed transmitting Amazon Pay Session Data!");
-            success = false;
-          }*/
-
-          //Final Checkout
-          if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
-            logger.info("Step 4.3: Finalizing Checkout")
-            if (config.shops.nbb.checkout) {
-              logger.info("Step 4.4: Clicking Checkout Button");
-              await page.click('#checkout_submit');
-              logger.info("Purchase completed!");
-              await page.waitForNavigation()
-              logger.info("Reached Amazon Pay Page!");
-              await page.waitForNavigation({ url: /notebooksbilliger\.de/g, timeout: 60000 });
-              logger.info("Reached NBB Success Page!");
-              await page.waitForTimeout(5000);
-            }
-            success = true;
-          }
+          await handleCheckout();
 
           //Allow for the page to be recorded
           await page.waitForTimeout(1000);
@@ -157,5 +103,75 @@ async function autoBuy(config, deal) {
     videoPath: videoPath,
     logFilePath: logger.getLogFile()
   }
+
+  async function handleCheckout(retry = 0) {
+    if (retry == 3) {
+      console.log("Done retrying!");
+      return
+    }
+    logger.info("Step 3.1: Checking out via Credit Card")
+    await page.click('#idpaycreditcard');
+    await page.click('[for="conditions"]', {
+      position: {
+        x: 10, y: 10
+      }
+    });
+    await page.click('#button_bottom');
+
+    //Final Checkout
+    if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
+      logger.info("Step 4.3: Finalizing Checkout")
+      if (config.shops.nbb.checkout) {
+        logger.info("Step 4.4: Clicking Checkout Button");
+        await page.click('#checkout_submit', { timeout: 60000 });
+        logger.info(page.url())
+        if (page.url().includes('https://www.notebooksbilliger.de/checkout.php?ccerror=')) {
+          logger.info("Failed to complete Credit Card Payment, trying again!")
+          //Go Back to Step 3.1
+          await handleCheckout(++retry);
+        } else {
+          logger.info("Purchase completed!");
+        }
+        await page.waitForNavigation()
+        logger.info("Reached Credit Card Checkout Page!");
+        page.waitForSelector('#iframeContainerFull').then(
+          async (ccIframe) => {
+            const frame = await ccIframe.contentFrame();
+            console.log("Retrieved 3DS Frame!");
+            // Handle SMS-TAN
+            frame.waitForSelector('#formOtp').then(async () => {
+              console.log("VISA wants SMS-TAN, retrieving!");
+              const response = await messagesWeb.waitForTan(config, context);
+              if (response.success) {
+                await frame.fill('#challengeDataEntry', response.tan);
+                await frame.click("#confirm")
+                console.log("Filled in SMS-TAN!");
+
+                // Handle VISA Online PIN
+                frame.waitForSelector('#formOtp').then(async () => {
+                  console.log("VISA wants Online PIN!");
+                  await frame.fill('#challengeDataEntry', config.payment_gateways.lbb_visa.online_pin);
+                  await frame.click("#confirm")
+                  console.log("Filled in Online-PIN!");
+                });
+                //Online PIN Handling End
+
+              } else {
+                console.log("Failed retrieving SMS-TAN!")
+              }
+            });
+          }
+        )
+
+        await page.waitForNavigation({ url: /notebooksbilliger\.de/g, timeout: 180000 });
+        logger.info("Reached NBB Success Page!");
+        await page.waitForTimeout(5000);
+      }
+      success = true;
+    } else {
+      await handleCheckout(++retry);
+    }
+  }
 }
+
 module.exports = autoBuy;

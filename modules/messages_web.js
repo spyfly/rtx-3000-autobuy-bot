@@ -27,6 +27,7 @@ module.exports = {
         if (page.url() == "https://messages.google.com/web/authentication") {
             await page.click('#mat-slide-toggle-1');
             const image = await page.waitForSelector('img');
+            await page.waitForTimeout(2000);
             await image.screenshot({ path: qrCodePath })
             await telegramBot.sendPhoto(config.telegram.chat_id, qrCodePath, { caption: 'Scan this QR Code with the Messages Web App!' });
             await page.waitForNavigation({ timeout: 120000 });
@@ -37,7 +38,7 @@ module.exports = {
 
         await context.close();
     },
-    waitForTan: async function (config) {
+    waitForTan: async function (config, context) {
         success = true;
         var tan = null;
         const logger = new Logger(config.user, 'messages_web_setup');
@@ -54,8 +55,6 @@ module.exports = {
             browser_options.proxy = { server: config.general.proxy };
         }
 
-        const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/' + config.user + "/", browser_options);
-
         const page = await context.newPage();
         await page.goto("https://messages.google.com/web/");
         await page.waitForTimeout(1000);
@@ -64,7 +63,7 @@ module.exports = {
             const snippet = await messageObj.waitForSelector('mws-conversation-snippet');
             const message = await (await snippet.waitForSelector('span')).textContent();
             logger.info("Received Message: " + message);
-            tan = message.match(/[0-9]{6}/g);
+            tan = message.match(/[0-9]{6}/g)[0];
             logger.info("TAN: " + tan);
 
             //Archiving Message
@@ -78,7 +77,7 @@ module.exports = {
             //await telegramBot.sendMessage(config.telegram.chat_id, "Messages Web requires setup using /smssetup");
         }
 
-        await context.close();
+        await page.close();
         return {
             success: success,
             tan: tan
