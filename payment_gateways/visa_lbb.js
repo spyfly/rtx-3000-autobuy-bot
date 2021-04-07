@@ -20,15 +20,15 @@ module.exports = {
                 console.log("VISA wants SMS-TAN, retrieving!");
                 const response = await messagesWeb.waitForTan(config, context);
                 if (response.success) {
-                    await frame.fill('input', response.tan);
-                    await frame.click('.btn-primary');
+                    await frame.fill('input[type="text"]', response.tan);
+                    await frame.click('.btn-primary:visible');
                     console.log("Filled in SMS-TAN!");
 
                     // Handle VISA Online PIN
                     frame.waitForSelector('#formOtp').then(async () => {
                         console.log("VISA wants Online PIN!");
-                        await frame.fill('input', config.payment_gateways.lbb_visa.online_pin);
-                        await frame.click('.btn-primary');
+                        await frame.fill('input[type="password"]', config.payment_gateways.lbb_visa.online_pin);
+                        await frame.click('.btn-primary:visible');
                         console.log("Filled in Online-PIN!");
                     });
                     //Online PIN Handling End
