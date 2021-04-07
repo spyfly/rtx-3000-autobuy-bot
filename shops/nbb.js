@@ -55,7 +55,7 @@ async function autoBuy(config, deal) {
       const productpopupLocation = response.headers()['location'];
       if (productpopupLocation.includes('action/productpopup')) {
         logger.info("Step 2.1: Going to Checkout");
-        const basket = page.goto('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1', { timeout: 0 });
+        page.click('#cartlayer_link_checkout', { noWaitAfter: true })
         const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1');
         const status = response.status();
         const location = response.headers()['location'];
@@ -75,8 +75,8 @@ async function autoBuy(config, deal) {
             await page.fill('#f_password', config.shops.nbb.password)
             await page.click('[for="set_rememberme"]');
             await page.click('[name="login"]', { noWaitAfter: true });
-            await page.waitForResponse(/notebooksbilliger\.de/g);
-            await page.goto('https://www.notebooksbilliger.de/kasse', { timeout: 60000 });
+            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+            logger.info("Step 2.4: Login complete!");
           }
 
           await handleCheckout();
