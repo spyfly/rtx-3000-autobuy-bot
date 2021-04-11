@@ -8,7 +8,8 @@ const app = express();
 const shops = {
     nbb: require('./shops/nbb.js'),
     asus: require('./shops/asus.js'),
-    ceconomy: require('./shops/ceconomy.js')
+    ceconomy: require('./shops/ceconomy.js'),
+    alternate: require('./shops/alternate.js')
 }
 const messagesWeb = require('./modules/messages_web.js');
 const e = require('express');

@@ -1,0 +1,2 @@
+#!/bin/sh
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"alternate","deal": {"title": "RTX 3060", "href": "https://www.alternate.de/GIGABYTE/GeForce-RTX-3070-Eagle-OC-Grafikkarte/html/product/1680097", "price": "56.9"}}'   http://localhost:3000/trigger
