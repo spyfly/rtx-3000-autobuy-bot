@@ -41,8 +41,8 @@ async function autoBuy(config, deal) {
             await page.evaluate(() => document.querySelector('[title="Anmelden"]').click());
             await page.waitForNavigation({ url: 'https://www.alternate.de/login.xhtml' });
             console.log("Step 2.2: Reached Login Page");
-            await page.fill('[id="login:email"]', config.shops.alternate.email);
-            await page.fill('[id="login:pwd"]', config.shops.alternate.password);
+            await page.fill('[id*="email"]', config.shops.alternate.email);
+            await page.fill('[id*="pwd"]', config.shops.alternate.password);
             await page.click('#loginbutton');
             console.log("Step 2.3: Clicking Login Button");
             await page.waitForNavigation('https://www.alternate.de/cart.xhtml');
