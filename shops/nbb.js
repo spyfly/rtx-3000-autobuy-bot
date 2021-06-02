@@ -79,9 +79,9 @@ async function autoBuy(config, deal) {
       })).text();
     }, { multipartId, productId });
     console.log(resp)
-    await page.waitForTimeout(1000);
     await page.goto("https://m.notebooksbilliger.de/warenkorb");
-    await page.waitForTimeout(100000);
+    await page.click('#AmazonPayLoginBox');
+    await page.waitForTimeout(1000000);
 
     const response = await page.waitForResponse(deal.href + '/action/add_product');
     if (response.status() == 302) {
