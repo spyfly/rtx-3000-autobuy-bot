@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const visaLbb = require("../payment_gateways/visa_lbb.js")
@@ -7,6 +8,7 @@ const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
 const messagesWeb = require('../modules/messages_web.js')
 const crypto = require("crypto");
+const amazonPay = require("../payment_gateways/amazon_pay_pptr.js")
 
 async function clickAwayCookies(page, logger, retry = 0) {
   if (retry < 3) {
@@ -50,6 +52,10 @@ async function autoBuy(config, deal) {
     ],
   });
   const page = await context.newPage();
+  const recorder = new PuppeteerScreenRecorder(page);
+  const videoPath = "/tmp/videos/rtx-3000-autobuy-bot/" + crypto.randomBytes(20).toString('hex') + ".mp4";
+  console.log(videoPath)
+  await recorder.start(videoPath);
 
   try {
     logger.info("Finished Setup!");
@@ -59,7 +65,10 @@ async function autoBuy(config, deal) {
 
     //logger.info("Step 1.2: Adding Item to Cart");
     //await page.click('#add_to_cart', { noWaitAfter: true });
-    await page.goto("https://m.notebooksbilliger.de");
+    await page.goto("https://m.notebooksbilliger.de/kaufberater");
+    await page.evaluate(() => {
+      localStorage.setItem('uc_settings', 'Test');
+    });
 
     //await page.waitForTimeout(1000000)
     const productId = deal.href.match(/[0-9]{6}/g)[0];
@@ -80,9 +89,38 @@ async function autoBuy(config, deal) {
     }, { multipartId, productId });
     console.log(resp)
     await page.goto("https://m.notebooksbilliger.de/warenkorb");
-    await page.click('#AmazonPayLoginBox');
-    await page.waitForTimeout(1000000);
+    await page.click('#loginWithAmazon__summary');
 
+    console.log("Starting Amazon Pay!");
+    await amazonPay(page, config.payment_gateways.amazon, logger)
+
+    await page.waitForResponse(async (response) => {
+      return (await response.url()).includes("https://m.notebooksbilliger.de/checkout/amazonpay");
+    });
+    console.log("Amazon Pay Complete!");
+    await page.waitForSelector('#amazonPayToCheckout', { visible: true });
+    await page.click('#amazonPayToCheckout');
+    console.log("Continuing Amazon Pay!")
+    await page.waitForNavigation();
+    console.log("Arrived on Checkout Page!");
+    const radioBox = await page.waitForSelector('[value="hermes"]', { visible: true });
+    const radioLabel = (await radioBox.$x('..'))[0];
+    await radioLabel.click();
+
+    await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+    await page.waitForSelector('.button--orange', { visible: true })
+    await page.click('.button--orange');
+    console.log("Selected Shipment Method!");
+
+    await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+    await page.waitForSelector('.button--orange:not([disabled="disabled"])', { visible: true })
+    console.log("Ready to Pay!");
+    await page.click('.button--orange');
+    console.log("Waiting for Navigation!");
+    await page.waitForNavigation();
+
+    await page.waitForTimeout(10000);
+    /*
     const response = await page.waitForResponse(deal.href + '/action/add_product');
     if (response.status() == 302) {
       logger.info("Step 1.3: Product has been added to cart!");
@@ -126,11 +164,13 @@ async function autoBuy(config, deal) {
       logger.info("Error: Unknown Response Status: " + response.status());
       success = false;
     }
+    */
   } catch (err) {
     logger.info(err.stack);
     success = false;
   }
 
+  await recorder.stop();
   await context.close();
   return {
     success: success,

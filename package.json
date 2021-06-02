@@ -24,6 +24,7 @@
     "playwright": "^1.10.0-next-alpha-mar-18-2021",
     "puppeteer-extra": "^3.1.18",
     "puppeteer-extra-plugin-stealth": "^2.7.8",
+    "puppeteer-screen-recorder": "^1.1.11",
     "speakeasy": "^2.0.0",
     "user-agents": "^1.0.596",
     "winston": "^3.3.3"
