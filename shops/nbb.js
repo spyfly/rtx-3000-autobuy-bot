@@ -1,9 +1,12 @@
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer-extra')
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const visaLbb = require("../payment_gateways/visa_lbb.js")
 const imposter = require('../libs/imposter.js');
 const Logger = require("../libs/logger.js")
 const messagesWeb = require('../modules/messages_web.js')
+const crypto = require("crypto");
 
 async function clickAwayCookies(page, logger, retry = 0) {
   if (retry < 3) {
@@ -26,7 +29,7 @@ async function autoBuy(config, deal) {
     recordVideo: {
       dir: '/tmp/videos/rtx-3000-autobuy-bot'
     },
-    headless: !config.general.debug
+    headless: !config.general.debug,
   };
 
   const browserDetails = await imposter.getBrowserDetails(config.user);
@@ -37,17 +40,48 @@ async function autoBuy(config, deal) {
     browser_options.proxy = { server: config.general.proxy };
   }
 
-  const context = await chromium.launchPersistentContext('/tmp/rtx-3000-autobuy-bot/' + config.user + "/", browser_options);
+  const context = await puppeteer.launch({
+    userDataDir: '/tmp/rtx-3000-autobuy-bot/' + config.user + "/",
+    headless: false,
+    args: [
+      '--no-sandbox',
+      '--proxy-server=' + config.general.proxy,
+      '--lang=de-DE'
+    ],
+  });
   const page = await context.newPage();
-  const videoPath = await page.video().path();
+
   try {
     logger.info("Finished Setup!");
 
-    logger.info("Step 1.1: Generating add to cart Button");
-    await page.setContent(`<form method="post" action="` + deal.href + `/action/add_product"><button type="submit" id="add_to_cart">In den Warenkorb</button></form>`)
+    //logger.info("Step 1.1: Generating add to cart Button");
+    //await page.setContent(`<form method="post" action="` + deal.href + `/action/add_product"><button type="submit" id="add_to_cart">In den Warenkorb</button></form>`)
 
-    logger.info("Step 1.2: Adding Item to Cart");
-    await page.click('#add_to_cart', { noWaitAfter: true });
+    //logger.info("Step 1.2: Adding Item to Cart");
+    //await page.click('#add_to_cart', { noWaitAfter: true });
+    await page.goto("https://m.notebooksbilliger.de");
+
+    //await page.waitForTimeout(1000000)
+    const productId = deal.href.match(/[0-9]{6}/g)[0];
+    const multipartId = crypto.randomBytes(20).toString('hex');
+    const resp = await page.evaluate(async (self) => {
+      return await (await fetch("https://m.notebooksbilliger.de/cart/add/", {
+        "credentials": "include",
+        "headers": {
+          "Accept": "application/json, text/plain, */*",
+          "Content-Type": "multipart/form-data; boundary=---------------------------" + self.multipartId,
+          "Pragma": "no-cache",
+          "Cache-Control": "no-cache"
+        },
+        "body": "-----------------------------" + self.multipartId + "\nContent-Disposition: form-data; name=\"id\"\n\n" + self.productId + "\n-----------------------------" + self.multipartId + "--\n",
+        "method": "POST",
+        "mode": "cors"
+      })).text();
+    }, { multipartId, productId });
+    console.log(resp)
+    await page.waitForTimeout(1000);
+    await page.goto("https://m.notebooksbilliger.de/warenkorb");
+    await page.waitForTimeout(100000);
 
     const response = await page.waitForResponse(deal.href + '/action/add_product');
     if (response.status() == 302) {
