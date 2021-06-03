@@ -28,15 +28,16 @@ async function addProductToCart(page, productId) {
       "credentials": "include",
       "headers": {
         "Accept": "application/json, text/plain, */*",
-        "Content-Type": "multipart/form-data; boundary=---------------------------" + self.multipartId,
+        "Content-Type": "multipart/form-data; boundary=---------------------------" + multipartId,
         "Pragma": "no-cache",
-        "Cache-Control": "no-cache"
+        "Cache-Control": "no-cache",
+        "X-NewRelic-ID": "VQQHU19aCBACUlhUDwgHUFA="
       },
-      "body": "-----------------------------" + multipartId + "\nContent-Disposition: form-data; name=\"id\"\n\n" + productId + "\n-----------------------------" + self.multipartId + "--\n",
+      "body": "-----------------------------" + multipartId + "\nContent-Disposition: form-data; name=\"id\"\n\n" + productId + "\n-----------------------------" + multipartId + "--\n",
       "method": "POST",
       "mode": "cors"
     })).json();
-  }, "WebKitFormBoundary" + crypto.randomBytes(15).toString('hex'), productId);
+  }, "WebKitFormBoundary" + crypto.randomBytes(16).toString('hex'), productId);
 }
 
 async function autoBuy(config, deal) {
@@ -88,15 +89,13 @@ async function autoBuy(config, deal) {
 
     //await page.waitForTimeout(1000000)
     const productId = deal.href.match(/[0-9]{6}/g)[0];
-    const multipartId = crypto.randomBytes(20).toString('hex');
-    //await page.waitForTimeout(1000000);
+
     const cartResp = await addProductToCart(page, productId);
     console.log(cartResp)
     if (cartResp.cartCount == 0) {
       console.log("Failed to add product to cart! Trying again!");
       success = false
     } else {
-
       const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[href="/kundenkonto/login"] .logged').length == 1)
       console.log("IsLoggedIn: " + isLoggedIn)
 
