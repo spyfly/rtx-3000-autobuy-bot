@@ -92,7 +92,7 @@ async function autoBuy(config, deal) {
 
     const cartResp = await addProductToCart(page, productId);
     console.log(cartResp)
-    if (cartResp.cartCount == 0) {
+    if (cartResp.isBuyable == false) {
       console.log("Failed to add product to cart! Trying again!");
       success = false
     } else {
