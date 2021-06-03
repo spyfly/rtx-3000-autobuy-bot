@@ -95,6 +95,14 @@ async function handleTelegramMessages(telegramBot, data) {
                 } catch (err) {
 
                 }
+            } else if (msg.text == "/nbbwarmup") {
+                try {
+                    shops.nbb(data, null, true).then((result) => {
+                        console.log(result);
+                    });
+                } catch (err) {
+                    console.log(err)
+                }
             }
         } else {
             console.log("Received Message from unknown chat_id: " + chatId)

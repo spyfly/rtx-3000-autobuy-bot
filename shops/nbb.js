@@ -40,7 +40,35 @@ async function addProductToCart(page, productId) {
   }, "WebKitFormBoundary" + crypto.randomBytes(16).toString('hex'), productId);
 }
 
-async function autoBuy(config, deal) {
+async function removeProductFromCart(page, productId) {
+  return await page.evaluate(async (productId) => {
+    return await (await fetch("https://m.notebooksbilliger.de/cart/remove", {
+      "credentials": "include",
+      "headers": {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      "referrer": "https://m.notebooksbilliger.de/warenkorb",
+      "body": "{\"id\":" + productId + "}",
+      "method": "POST",
+      "mode": "cors"
+    })).json();
+  }, productId);
+}
+
+async function fetchCart(page) {
+  return await page.evaluate(async () => {
+    return await (await fetch("https://m.notebooksbilliger.de/cart", {
+      "credentials": "include",
+      "headers": {
+        "Content-Type": "application/json;charset=utf-8"
+      },
+      "method": "GET",
+      "mode": "cors"
+    })).json();
+  });
+}
+
+async function autoBuy(config, deal, warmUp = false) {
   const logger = new Logger(config.user, 'nbb');
 
   var success = true;
@@ -87,73 +115,97 @@ async function autoBuy(config, deal) {
       localStorage.setItem('uc_settings', 'Test');
     });
 
-    //await page.waitForTimeout(1000000)
-    const productId = deal.href.match(/[0-9]{6}/g)[0];
-
-    const cartResp = await addProductToCart(page, productId);
-    console.log(cartResp)
-    if (cartResp.isBuyable == false) {
-      console.log("Failed to add product to cart! Trying again!");
-      success = false
-    } else {
+    if (warmUp) {
+      console.log("Warming up!");
+      await page.waitForTimeout(5000);
       const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[href="/kundenkonto/login"] .logged').length == 1)
       console.log("IsLoggedIn: " + isLoggedIn)
 
-      if (!isLoggedIn)
+      if (!isLoggedIn) {
         await performLogin(page);
+        console.log("Performed Login!");
+      }
 
-      await page.goto("https://m.notebooksbilliger.de/kasse")
+      const cart = await fetchCart(page);
+      console.log(cart.productsCount);
+      if (cart.productsCount > 0) {
+        console.log("Require Cart Cleanup!");
+        for (const product of cart.products) {
+          console.log("Removing Product: " + product.id);
+          await removeProductFromCart(page, product.id);
+        }
+        console.log("Cart cleanup complete!");
+      }
+    } else {
 
-      //Selecting Payment Method
-      console.log("Selecting Payment Method!");
-      const paymentRadioBox = await page.waitForSelector('[value="creditcard"]', { visible: true });
-      const paymentRadioLabel = (await paymentRadioBox.$x('..'))[0];
-      await paymentRadioLabel.click();
+      //await page.waitForTimeout(1000000)
+      const productId = deal.href.match(/[0-9]{6}/g)[0];
 
-      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
-      await page.click('.button:not([disabled="disabled"])');
+      const cartResp = await addProductToCart(page, productId);
+      console.log(cartResp)
+      if (cartResp.isBuyable == false) {
+        console.log("Failed to add product to cart! Trying again!");
+        success = false
+      } else {
+        const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[href="/kundenkonto/login"] .logged').length == 1)
+        console.log("IsLoggedIn: " + isLoggedIn)
 
-      //Selecting Shipping Method
-      console.log("Selecting Shipping Method");
-      const shippingRadioBox = await page.waitForSelector('[value="hermes"]', { visible: true });
-      const shippingRadioLabel = (await shippingRadioBox.$x('..'))[0];
-      await shippingRadioLabel.click();
+        if (!isLoggedIn)
+          await performLogin(page);
 
-      //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
-      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
-      await page.click('.button:not([disabled="disabled"])');
+        await page.goto("https://m.notebooksbilliger.de/kasse")
 
-      await page.waitForSelector('.loader', { hidden: true });
-      //Preparing to initiate Payment
-      console.log("Initiating Payment!");
-      //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
-      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
-      await page.click('.button:not([disabled="disabled"])');
-      //await page.waitForNavigation();
-      //console.log("Navigation occured!");
+        //Selecting Payment Method
+        console.log("Selecting Payment Method!");
+        const paymentRadioBox = await page.waitForSelector('[value="creditcard"]', { visible: true });
+        const paymentRadioLabel = (await paymentRadioBox.$x('..'))[0];
+        await paymentRadioLabel.click();
 
-      await page.waitForSelector('.loader', { hidden: true });
-      console.log("Arrived on CreditCard Details Page!")
-      //await page.waitForTimeout(10000000);
-
-      await page.waitForSelector('[name="cardHolder"]', { visible: true });
-      const cc = config.payment_gateways.creditcard;
-      await page.type('[name="cardHolder"]', cc.card_holder);
-      await page.type('[name="formattedCardPan"]', cc.number);
-      await page.type('[name="expirationMonth"]', cc.expiry_month);
-      await page.type('[name="expirationYear"]', cc.expiry_year);
-      await page.type('[name="cardcvc2"]', cc.cvc);
-
-      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
-      console.log("Ready to Pay!");
-
-      if (config.shops.nbb.checkout) {
+        await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
         await page.click('.button:not([disabled="disabled"])');
-        await page.waitForNavigation();
-        console.log("Reached 3DS Page! Giving User ton of time to checkout!");
 
-        await page.waitForResponse((response) =>
-          response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+        //Selecting Shipping Method
+        console.log("Selecting Shipping Method");
+        const shippingRadioBox = await page.waitForSelector('[value="hermes"]', { visible: true });
+        const shippingRadioLabel = (await shippingRadioBox.$x('..'))[0];
+        await shippingRadioLabel.click();
+
+        //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+        await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+        await page.click('.button:not([disabled="disabled"])');
+
+        await page.waitForSelector('.loader', { hidden: true });
+        //Preparing to initiate Payment
+        console.log("Initiating Payment!");
+        //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+        await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+        await page.click('.button:not([disabled="disabled"])');
+        //await page.waitForNavigation();
+        //console.log("Navigation occured!");
+
+        await page.waitForSelector('.loader', { hidden: true });
+        console.log("Arrived on CreditCard Details Page!")
+        //await page.waitForTimeout(10000000);
+
+        await page.waitForSelector('[name="cardHolder"]', { visible: true });
+        const cc = config.payment_gateways.creditcard;
+        await page.type('[name="cardHolder"]', cc.card_holder);
+        await page.type('[name="formattedCardPan"]', cc.number);
+        await page.type('[name="expirationMonth"]', cc.expiry_month);
+        await page.type('[name="expirationYear"]', cc.expiry_year);
+        await page.type('[name="cardcvc2"]', cc.cvc);
+
+        await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+        console.log("Ready to Pay!");
+
+        if (config.shops.nbb.checkout) {
+          await page.click('.button:not([disabled="disabled"])');
+          await page.waitForNavigation();
+          console.log("Reached 3DS Page! Giving User ton of time to checkout!");
+
+          await page.waitForResponse((response) =>
+            response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+        }
       }
     }
   } catch (err) {
