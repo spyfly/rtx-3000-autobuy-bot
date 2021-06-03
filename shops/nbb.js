@@ -10,17 +10,33 @@ const messagesWeb = require('../modules/messages_web.js')
 const crypto = require("crypto");
 const amazonPay = require("../payment_gateways/amazon_pay_pptr.js")
 
-async function clickAwayCookies(page, logger, retry = 0) {
-  if (retry < 3) {
-    logger.info("Step 2.2: Clicking away cookies banner | Try: " + ++retry);
-    page.click('#uc-btn-accept-banner', { timeout: 0 }).then(() => {
-      logger.info("Step 2.2: Clicked away cookies!");
-    }, () => {
-      clickAwayCookies(page, logger, retry);
-    });
-  } else {
-    logger.info("Step 2.2: Failed clicking away cookies!");
-  }
+async function performLogin(page) {
+  return await page.evaluate(async (email, password) => await (await fetch("https://m.notebooksbilliger.de/auth/login", {
+    "credentials": "include",
+    "headers": {
+      "Content-Type": "application/json;charset=utf-8"
+    },
+    "body": "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}",
+    "method": "POST",
+    "mode": "cors"
+  })).text(), "seb.heiden@gmail.com", "P3OFhLc0QA95VA9AGVygxLvp8EpDWoSa");
+}
+
+async function addProductToCart(page, productId) {
+  return await page.evaluate(async (multipartId, productId) => {
+    return await (await fetch("https://m.notebooksbilliger.de/cart/add/", {
+      "credentials": "include",
+      "headers": {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "multipart/form-data; boundary=---------------------------" + self.multipartId,
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache"
+      },
+      "body": "-----------------------------" + multipartId + "\nContent-Disposition: form-data; name=\"id\"\n\n" + productId + "\n-----------------------------" + self.multipartId + "--\n",
+      "method": "POST",
+      "mode": "cors"
+    })).json();
+  }, "WebKitFormBoundary" + crypto.randomBytes(15).toString('hex'), productId);
 }
 
 async function autoBuy(config, deal) {
@@ -65,7 +81,7 @@ async function autoBuy(config, deal) {
 
     //logger.info("Step 1.2: Adding Item to Cart");
     //await page.click('#add_to_cart', { noWaitAfter: true });
-    await page.goto("https://m.notebooksbilliger.de/kaufberater");
+    await page.goto("https://m.notebooksbilliger.de/newsletter");
     await page.evaluate(() => {
       localStorage.setItem('uc_settings', 'Test');
     });
@@ -73,98 +89,74 @@ async function autoBuy(config, deal) {
     //await page.waitForTimeout(1000000)
     const productId = deal.href.match(/[0-9]{6}/g)[0];
     const multipartId = crypto.randomBytes(20).toString('hex');
-    const resp = await page.evaluate(async (self) => {
-      return await (await fetch("https://m.notebooksbilliger.de/cart/add/", {
-        "credentials": "include",
-        "headers": {
-          "Accept": "application/json, text/plain, */*",
-          "Content-Type": "multipart/form-data; boundary=---------------------------" + self.multipartId,
-          "Pragma": "no-cache",
-          "Cache-Control": "no-cache"
-        },
-        "body": "-----------------------------" + self.multipartId + "\nContent-Disposition: form-data; name=\"id\"\n\n" + self.productId + "\n-----------------------------" + self.multipartId + "--\n",
-        "method": "POST",
-        "mode": "cors"
-      })).text();
-    }, { multipartId, productId });
-    console.log(resp)
-    await page.goto("https://m.notebooksbilliger.de/warenkorb");
-    await page.click('#loginWithAmazon__summary');
-
-    console.log("Starting Amazon Pay!");
-    await amazonPay(page, config.payment_gateways.amazon, logger)
-
-    await page.waitForResponse(async (response) => {
-      return (await response.url()).includes("https://m.notebooksbilliger.de/checkout/amazonpay");
-    });
-    console.log("Amazon Pay Complete!");
-    await page.waitForSelector('#amazonPayToCheckout', { visible: true });
-    await page.click('#amazonPayToCheckout');
-    console.log("Continuing Amazon Pay!")
-    await page.waitForNavigation();
-    console.log("Arrived on Checkout Page!");
-    const radioBox = await page.waitForSelector('[value="hermes"]', { visible: true });
-    const radioLabel = (await radioBox.$x('..'))[0];
-    await radioLabel.click();
-
-    await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
-    await page.waitForSelector('.button--orange', { visible: true })
-    await page.click('.button--orange');
-    console.log("Selected Shipment Method!");
-
-    await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
-    await page.waitForSelector('.button--orange:not([disabled="disabled"])', { visible: true })
-    console.log("Ready to Pay!");
-    await page.click('.button--orange');
-    console.log("Waiting for Navigation!");
-    await page.waitForNavigation();
-
-    await page.waitForTimeout(10000);
-    /*
-    const response = await page.waitForResponse(deal.href + '/action/add_product');
-    if (response.status() == 302) {
-      logger.info("Step 1.3: Product has been added to cart!");
-      const productpopupLocation = response.headers()['location'];
-      if (productpopupLocation.includes('action/productpopup')) {
-        logger.info("Step 2.1: Going to Checkout");
-        page.click('#cartlayer_link_checkout', { noWaitAfter: true })
-        const response = await page.waitForResponse('https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1');
-        const status = response.status();
-        const location = response.headers()['location'];
-        logger.info("Status: " + status + " | Location: " + location)
-
-        if (status == 302 && location == 'https://www.notebooksbilliger.de/warenkorb') {
-          logger.info("Error: Couldn't add product to basket!");
-          await basket;
-          success = false;
-        } else {
-          clickAwayCookies(page, logger);
-
-          await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-          if (page.url().includes('https://www.notebooksbilliger.de/kasse/anmelden')) {
-            logger.info("Step 2.3: Performing NBB Login")
-            await page.fill('#f_email_address', config.shops.nbb.email)
-            await page.fill('#f_password', config.shops.nbb.password)
-            await page.click('[for="set_rememberme"]');
-            await page.click('[name="login"]', { noWaitAfter: true });
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
-            logger.info("Step 2.4: Login complete!");
-          }
-
-          await handleCheckout();
-
-          //Allow for the page to be recorded
-          await page.waitForTimeout(1000);
-        }
-      } else {
-        logger.info("Error: Redirected to unknown URL: " + response.headers()['location']);
-        success = false;
-      }
+    //await page.waitForTimeout(1000000);
+    const cartResp = await addProductToCart(page, productId);
+    console.log(cartResp)
+    if (cartResp.cartCount == 0) {
+      console.log("Failed to add product to cart! Trying again!");
+      success = false
     } else {
-      logger.info("Error: Unknown Response Status: " + response.status());
-      success = false;
+
+      const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[href="/kundenkonto/login"] .logged').length == 1)
+      console.log("IsLoggedIn: " + isLoggedIn)
+
+      if (!isLoggedIn)
+        await performLogin(page);
+
+      await page.goto("https://m.notebooksbilliger.de/kasse")
+
+      //Selecting Payment Method
+      console.log("Selecting Payment Method!");
+      const paymentRadioBox = await page.waitForSelector('[value="creditcard"]', { visible: true });
+      const paymentRadioLabel = (await paymentRadioBox.$x('..'))[0];
+      await paymentRadioLabel.click();
+
+      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+      await page.click('.button:not([disabled="disabled"])');
+
+      //Selecting Shipping Method
+      console.log("Selecting Shipping Method");
+      const shippingRadioBox = await page.waitForSelector('[value="hermes"]', { visible: true });
+      const shippingRadioLabel = (await shippingRadioBox.$x('..'))[0];
+      await shippingRadioLabel.click();
+
+      //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+      await page.click('.button:not([disabled="disabled"])');
+
+      await page.waitForSelector('.loader', { hidden: true });
+      //Preparing to initiate Payment
+      console.log("Initiating Payment!");
+      //await page.evaluate(() => document.querySelector('.button--orange').outerHTML = "");
+      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+      await page.click('.button:not([disabled="disabled"])');
+      //await page.waitForNavigation();
+      //console.log("Navigation occured!");
+
+      await page.waitForSelector('.loader', { hidden: true });
+      console.log("Arrived on CreditCard Details Page!")
+      //await page.waitForTimeout(10000000);
+
+      await page.waitForSelector('[name="cardHolder"]', { visible: true });
+      const cc = config.payment_gateways.creditcard;
+      await page.type('[name="cardHolder"]', cc.card_holder);
+      await page.type('[name="formattedCardPan"]', cc.number);
+      await page.type('[name="expirationMonth"]', cc.expiry_month);
+      await page.type('[name="expirationYear"]', cc.expiry_year);
+      await page.type('[name="cardcvc2"]', cc.cvc);
+
+      await page.waitForSelector('.button:not([disabled="disabled"])', { visible: true })
+      console.log("Ready to Pay!");
+
+      if (config.shops.nbb.checkout) {
+        await page.click('.button:not([disabled="disabled"])');
+        await page.waitForNavigation();
+        console.log("Reached 3DS Page! Giving User ton of time to checkout!");
+
+        await page.waitForResponse((response) =>
+          response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+      }
     }
-    */
   } catch (err) {
     logger.info(err.stack);
     success = false;
@@ -176,48 +168,6 @@ async function autoBuy(config, deal) {
     success: success,
     videoPath: videoPath,
     logFilePath: logger.getLogFile()
-  }
-
-  async function handleCheckout(retry = 0) {
-    if (retry == 3) {
-      console.log("Done retrying!");
-      return
-    }
-    logger.info("Step 3.1: Checking out via Credit Card")
-    await page.click('#idpaycreditcard');
-    await page.click('[for="conditions"]', {
-      position: {
-        x: 10, y: 10
-      }
-    });
-    await page.click('#button_bottom');
-
-    //Final Checkout
-    if (page.url() == 'https://www.notebooksbilliger.de/kasse/zusammenfassung') {
-      logger.info("Step 4.3: Finalizing Checkout")
-      if (config.shops.nbb.checkout) {
-        logger.info("Step 4.4: Clicking Checkout Button");
-        await page.click('#checkout_submit', { timeout: 60000 });
-        logger.info(page.url())
-        if (page.url().includes('https://www.notebooksbilliger.de/checkout.php?ccerror=')) {
-          logger.info("Failed to complete Credit Card Payment, trying again!")
-          //Go Back to Step 3.1
-          await handleCheckout(++retry);
-        } else {
-          logger.info("Purchase completed!");
-        }
-        await page.waitForNavigation()
-        logger.info("Reached Credit Card Checkout Page!");
-        visaLbb.handle3DSecure(config, page, context);
-
-        await page.waitForNavigation({ url: /notebooksbilliger\.de/g, timeout: 180000 });
-        logger.info("Reached NBB Success Page!");
-        await page.waitForTimeout(5000);
-      }
-      success = true;
-    } else {
-      await handleCheckout(++retry);
-    }
   }
 }
 
