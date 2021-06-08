@@ -1,2 +1,2 @@
 #!/bin/sh
-curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"nbb","deal": {"title": "RTX 3080", "href": "https://www.notebooksbilliger.de/pny+quadro+p620+2gb+gddr5+grafikkarte+359152", "price": "56.9"}}'   http://localhost:3000/trigger
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"nbb","deal": {"title": "RTX 3080", "href": "https://www.notebooksbilliger.de/pny+quadro+rtx+4000+8gb+gddr6+grafikkarte+416237", "price": "56.9"}}'   http://localhost:3000/trigger
