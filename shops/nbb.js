@@ -167,21 +167,24 @@ async function autoBuy(config, deal, warmUp = false) {
         <input type="hidden" name="quantity[${productId}]" value="1"/>
         <input type="hidden" name="press_enter" value="0"/>
       </form>`)
-      const [_, response] = await Promise.all([
+      const [_, basketReq, loginReq, navigation] = [
         page.click('#add_to_cart', { noWaitAfter: true }),
-        page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a')
-      ]);
+        page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a'),
+        page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden"),
+        page.waitForNavigation()
+      ];
+      const basketRes = await basketReq;
       console.log("Basket loaded!");
       //const responseText = await response.text();
 
-      if (response.status() != 302) {
+      if (basketRes.status() != 302) {
         console.log("Failed to add product to cart! Trying again!");
         success = false
       } else {
-        const resp = await page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden");
-        const isLoggedIn = (await resp.status() == 302);
+        const loginRes = await loginReq;
+        const isLoggedIn = (await loginRes.status() == 302);
         console.log("IsLoggedIn: " + isLoggedIn)
-        await page.waitForNavigation();
+        await navigation;
         //const cookies = await page.cookies();
         //console.log(cookies);
 
