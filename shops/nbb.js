@@ -133,8 +133,10 @@ async function autoBuy(config, deal, warmUp = false) {
 
       if (cartCount == 0) {
         console.log("Adding item to cart!");
-        page.click('.js-pdp-head-add-to-cart');
-        await page.waitForNavigation();
+        await Promise.all([
+          page.click('.js-pdp-head-add-to-cart'),
+          page.waitForNavigation()
+        ]);
       }
 
       if (!isLoggedIn) {
