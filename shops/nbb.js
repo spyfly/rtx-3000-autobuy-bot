@@ -13,7 +13,7 @@ const amazonPay = require("../payment_gateways/amazon_pay_pptr.js");
 async function performLogin(page, email, password) {
   await page.type('#f_email_address', email)
   await page.type('#f_password', password);
-  await page.click('#set_rememberme');
+  //await page.click('#set_rememberme');
   await Promise.all([
     page.click('[type="submit"]'),
     page.waitForNavigation()
@@ -115,9 +115,9 @@ async function autoBuy(config, deal, warmUp = false) {
       console.log("Warming up!");
       await page.goto('https://www.notebooksbilliger.de/pny+quadro+rtx+4000+8gb+gddr6+grafikkarte+416237');
       //Disable Cookies Popup
-      await page.evaluate(() => {
-        localStorage.setItem('usercentrics', 'Test');
-      });
+      //await page.evaluate(() => {
+      //  localStorage.setItem('usercentrics', 'Test');
+      //});
 
       const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[data-wt="Kundenkonto"]').length == 1)
       console.log("IsLoggedIn: " + isLoggedIn)
@@ -180,9 +180,9 @@ async function autoBuy(config, deal, warmUp = false) {
         await page.waitForNavigation();
 
         //Disable Cookies Popup
-        await page.evaluate(() => {
-          localStorage.setItem('usercentrics', 'Test');
-        });
+        //await page.evaluate(() => {
+        //   localStorage.setItem('usercentrics', 'Test');
+        //});
 
         if (!isLoggedIn) {
           await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
