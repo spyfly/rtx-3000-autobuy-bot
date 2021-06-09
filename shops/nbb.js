@@ -83,6 +83,24 @@ async function autoBuy(config, deal, warmUp = false) {
   await recorder.start(videoPath);
 
   try {
+    await page.setRequestInterception(true)
+
+    page.on('request', (request) => {
+      if (request.resourceType() === 'image' ||
+        request.url().includes("klarna") ||
+        request.url().includes("amazon.com") ||
+        request.url().includes("app.usercentrics.eu") ||
+        request.url().includes("events.sd-nbb.de") ||
+        request.url().includes("maps.googleapis.com") ||
+        request.url().includes("js-agent.newrelic.com")) request.abort()
+      else {
+        //if (!request.url().includes("notebooksbilliger.de")) {
+        //  console.log(request.url())
+        //}
+        request.continue()
+      }
+    })
+
     logger.info("Finished Setup!");
 
     //logger.info("Step 1.1: Generating add to cart Button");
