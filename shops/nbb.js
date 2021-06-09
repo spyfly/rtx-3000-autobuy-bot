@@ -9,14 +9,15 @@ const Logger = require("../libs/logger.js")
 const messagesWeb = require('../modules/messages_web.js')
 const crypto = require("crypto");
 const amazonPay = require("../payment_gateways/amazon_pay_pptr.js");
-const { response } = require('express');
 
 async function performLogin(page, email, password) {
   await page.type('#f_email_address', email)
   await page.type('#f_password', password);
   await page.click('#set_rememberme');
-  page.click('[type="submit"]', { noWaitAfter: true });
-  await page.waitForNavigation();
+  await Promise.all([
+    page.click('[type="submit"]'),
+    page.waitForNavigation()
+  ]);
 }
 
 async function removeProductFromCart(page, productId) {
@@ -175,11 +176,18 @@ async function autoBuy(config, deal, warmUp = false) {
         await page.evaluate(() => document.querySelector('[for="conditions"]').click());
 
         console.log("Proceeding!");
-        await page.click('[type="submit"]');
+        await Promise.all([
+          page.click('[type="submit"]'),
+          page.waitForNavigation()
+        ]);
 
         if (config.shops.nbb.checkout) {
-          await page.click('.button:not([disabled="disabled"])');
-          await page.waitForNavigation();
+
+          console.log("Checking out!");
+          await Promise.all([
+            page.click('#checkout_submit'),
+            page.waitForNavigation()
+          ]);
           console.log("Reached 3DS Page! Giving User ton of time to checkout!");
 
           await page.waitForResponse((response) =>
