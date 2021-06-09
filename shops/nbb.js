@@ -15,8 +15,8 @@ async function performLogin(page, email, password) {
   await page.type('#f_password', password);
   //await page.click('#set_rememberme');
   await Promise.all([
-    page.click('[type="submit"]'),
-    page.waitForNavigation()
+    page.click('[type="submit"]', { noWaitAfter: true }),
+    page.waitForNavigation({ waitUntil: 'networkidle0' }),
   ]);
 }
 
@@ -194,6 +194,7 @@ async function autoBuy(config, deal, warmUp = false) {
         //});
 
         if (!isLoggedIn) {
+          console.log("Performing login!");
           await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
         }
 
