@@ -16,7 +16,7 @@ async function performLogin(page, email, password) {
   //await page.click('#set_rememberme');
   await Promise.all([
     page.click('[type="submit"]', { noWaitAfter: true }),
-    page.waitForNavigation({ waitUntil: 'networkidle0' }),
+    page.waitForNavigation({ waitUntil: 'domcontentloaded' })
   ]);
 }
 
@@ -156,8 +156,6 @@ async function autoBuy(config, deal, warmUp = false) {
         console.log("Cart cleanup complete!");
       }
     } else {
-
-      //await page.waitForTimeout(1000000)
       const productId = deal.href.match(/[0-9]{6}/g)[0];
 
       page.setContent(`<form method="post" 
@@ -171,7 +169,7 @@ async function autoBuy(config, deal, warmUp = false) {
         page.click('#add_to_cart', { noWaitAfter: true }),
         page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a'),
         page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden"),
-        page.waitForNavigation()
+        page.waitForNavigation({ waitUntil: 'domcontentloaded' })
       ];
       const basketRes = await basketReq;
       console.log("Basket loaded!");
