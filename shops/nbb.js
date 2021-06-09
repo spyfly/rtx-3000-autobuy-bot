@@ -85,8 +85,8 @@ async function autoBuy(config, deal, warmUp = false) {
   try {
     await page.setRequestInterception(true)
 
-    page.on('request', (request) => {
-      if (request.resourceType() === 'image' ||
+    /*page.on('request', (request) => {
+      if (//request.resourceType() === 'image' ||
         request.url().includes("klarna") ||
         request.url().includes("amazon.com") ||
         request.url().includes("app.usercentrics.eu") ||
@@ -99,7 +99,7 @@ async function autoBuy(config, deal, warmUp = false) {
         //}
         request.continue()
       }
-    })
+    })*/
 
     logger.info("Finished Setup!");
 
