@@ -167,8 +167,10 @@ async function autoBuy(config, deal, warmUp = false) {
         <input type="hidden" name="quantity[${productId}]" value="1"/>
         <input type="hidden" name="press_enter" value="0"/>
       </form>`)
-      page.click('#add_to_cart', { noWaitAfter: true });
-      const response = await page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a');
+      const [_, response] = await Promise.all([
+        page.click('#add_to_cart', { noWaitAfter: true }),
+        page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a')
+      ]);
       console.log("Basket loaded!");
       //const responseText = await response.text();
 
@@ -180,6 +182,8 @@ async function autoBuy(config, deal, warmUp = false) {
         const isLoggedIn = (await resp.status() == 302);
         console.log("IsLoggedIn: " + isLoggedIn)
         await page.waitForNavigation();
+        //const cookies = await page.cookies();
+        //console.log(cookies);
 
         //Disable Cookies Popup
         //await page.evaluate(() => {
@@ -190,29 +194,36 @@ async function autoBuy(config, deal, warmUp = false) {
           await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
         }
 
-        console.log("Selecting Credit Card Payment!");
-        await page.click('[id="paycreditcard"]');
+        const pageUrl = await page.url();
 
-        console.log("Accepting TOS!");
-        await page.evaluate(() => document.querySelector('[for="conditions"]').click());
+        if (pageUrl == "https://www.notebooksbilliger.de/kasse") {
+          console.log("Selecting Credit Card Payment!");
+          await page.click('[id="paycreditcard"]');
 
-        console.log("Proceeding!");
-        await Promise.all([
-          page.click('[type="submit"]'),
-          page.waitForNavigation()
-        ]);
+          console.log("Accepting TOS!");
+          await page.evaluate(() => document.querySelector('[for="conditions"]').click());
 
-        if (config.shops.nbb.checkout) {
-
-          console.log("Checking out!");
+          console.log("Proceeding!");
           await Promise.all([
-            page.click('#checkout_submit'),
+            page.click('[type="submit"]'),
             page.waitForNavigation()
           ]);
-          console.log("Reached 3DS Page! Giving User ton of time to checkout!");
 
-          await page.waitForResponse((response) =>
-            response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+          if (config.shops.nbb.checkout) {
+
+            console.log("Checking out!");
+            await Promise.all([
+              page.click('#checkout_submit'),
+              page.waitForNavigation()
+            ]);
+            console.log("Reached 3DS Page! Giving User ton of time to checkout!");
+
+            await page.waitForResponse((response) =>
+              response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+          }
+        } else {
+          console.log("Failed to add product to cart! Trying again!");
+          success = false;
         }
       }
     }
