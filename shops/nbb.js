@@ -135,7 +135,7 @@ async function autoBuy(config, deal, warmUp = false) {
         console.log("Adding item to cart!");
         await Promise.all([
           page.click('.js-pdp-head-add-to-cart'),
-          page.waitForNavigation()
+          page.waitForNavigation({ waitUntil: 'domcontentloaded' })
         ]);
       }
 
@@ -208,7 +208,7 @@ async function autoBuy(config, deal, warmUp = false) {
           console.log("Proceeding!");
           await Promise.all([
             page.click('[type="submit"]'),
-            page.waitForNavigation()
+            page.waitForNavigation({ waitUntil: 'domcontentloaded' })
           ]);
 
           if (config.shops.nbb.checkout) {
@@ -216,7 +216,7 @@ async function autoBuy(config, deal, warmUp = false) {
             console.log("Checking out!");
             await Promise.all([
               page.click('#checkout_submit'),
-              page.waitForNavigation()
+              page.waitForNavigation({ waitUntil: 'domcontentloaded' })
             ]);
             console.log("Reached 3DS Page! Giving User ton of time to checkout!");
 
