@@ -118,9 +118,10 @@ async function executeAutoBuy(shop, config, deal, telegram, retry = 0) {
         shops[shop](config, deal).then((result) => {
             if (result.success) {
                 console.log("Successful Purchase!")
-                telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
-                    caption: "Successfully purchased " + deal.title + " for " + deal.price + "€ at " + deal.href + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
-                })
+                if (result.videoPath != null)
+                    telegram.sendVideo(config.telegram.chat_id, result.videoPath, {
+                        caption: "Successfully purchased " + deal.title + " for " + deal.price + "€ at " + deal.href + ((retry != 0) ? ' after ' + retry + ' retries.' : '')
+                    })
                 telegram.sendDocument(config.telegram.chat_id, result.logFilePath, {
                     caption: deal.title + ((retry != 0) ? ' | Try: ' + retry : '')
                 });
