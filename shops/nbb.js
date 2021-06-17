@@ -106,6 +106,7 @@ async function autoBuy(config, deal, warmUp = false) {
         }
       })
       await page.setCacheEnabled(true);
+      await page.setDefaultNavigationTimeout(120 * 1000); // 120 Seconds Timeout
 
       logger.info("Finished Setup!");
 
@@ -172,8 +173,8 @@ async function autoBuy(config, deal, warmUp = false) {
       </form>`)
         const [_, basketReq, loginReq, navigation] = [
           page.click('#add_to_cart', { noWaitAfter: true }),
-          page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a'),
-          page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden"),
+          page.waitForResponse('https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a', { timeout: 120 * 1000 }),
+          page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden", { timeout: 120 * 1000 }),
           page.waitForNavigation({ waitUntil: 'domcontentloaded' })
         ];
         const basketRes = await basketReq;
