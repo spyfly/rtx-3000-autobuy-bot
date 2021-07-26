@@ -312,6 +312,19 @@ async function autoBuy(config, deal, warmUp = false) {
                 console.log("Failed cleaning cart!")
                 success = false;
               }
+            } else if (pageUrl == "https://www.notebooksbilliger.de/warenkorb") {
+              console.log("Couldn't checkout!");
+              const cart = await fetchCart(page);
+              console.log(cart.length);
+              if (cart.length > 0) {
+                console.log("Require Cart Cleanup!");
+                for (const cartItem of cart) {
+                  console.log("Removing Product: " + cartItem);
+                  await removeProductFromCart(page, cartItem);
+                }
+                console.log("Cart cleanup complete!");
+              }
+              success = false;
             } else {
               console.log("Failed to add product to cart! Trying again!");
               success = false;
