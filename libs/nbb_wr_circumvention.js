@@ -24,5 +24,10 @@ module.exports = async (page, playwright) => {
         }
     }
 
+    // Reload Page after wr_circumvention
+    if (wr_circumvented)
+        await page.reload();
+
+
     return wr_circumvented;
 }
