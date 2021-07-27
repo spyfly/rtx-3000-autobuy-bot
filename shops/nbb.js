@@ -126,6 +126,7 @@ async function autoBuy(config, deal, warmUp = false) {
       await page.setDefaultNavigationTimeout(120 * 1000); // 120 Seconds Timeout
 
       //Setting User Agent
+      logger.info("Setting User Agent to: " + browser_options.userAgent);
       await page.setUserAgent(browser_options.userAgent);
 
       logger.info("Finished Setup!");
