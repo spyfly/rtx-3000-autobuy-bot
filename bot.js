@@ -100,7 +100,6 @@ async function handleTelegramMessages(telegramBot, data) {
                     shops.nbb(data, null, true).then((result) => {
                         console.log(result);
                         if (!result.success) {
-                            console.log(data);
                             telegram.sendVideo(data.telegram.chat_id, result.videoPath, {
                                 caption: "WarmUp failed for " + data.user + "!"
                             })
