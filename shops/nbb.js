@@ -135,7 +135,7 @@ async function autoBuy(config, deal, warmUp = false) {
 
       if (warmUp) {
         console.log("Warming up!");
-        await page.goto('https://www.notebooksbilliger.de/pny+quadro+rtx+4000+8gb+gddr6+grafikkarte+416237');
+        await page.goto('https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia');
         await wr_circumvention(page);
         //Disable Cookies Popup
         //await page.evaluate(() => {
@@ -157,7 +157,7 @@ async function autoBuy(config, deal, warmUp = false) {
         if (cartCount == 0) {
           console.log("Adding item to cart!");
           await Promise.all([
-            page.click('.js-pdp-head-add-to-cart'),
+            page.click('.js-add-to-cart'),
             page.waitForNavigation({ waitUntil: 'domcontentloaded' })
           ]);
         }
