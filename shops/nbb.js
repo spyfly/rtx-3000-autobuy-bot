@@ -344,6 +344,11 @@ async function autoBuy(config, deal, warmUp = false) {
       success = false;
     }
 
+    if (!success) {
+      console.log("Regenerating Browser Details after failure!");
+      await imposter.generateNewDetails(config.user);
+    }
+
     await recorder.stop();
     await context.close();
   } catch (err) {
