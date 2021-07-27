@@ -98,6 +98,9 @@ async function autoBuy(config, deal, warmUp = false) {
       ],
     });
     const page = await context.newPage();
+    //Setting User Agent
+    await page.setUserAgent(browser_options.userAgent);
+
     const recorder = new PuppeteerScreenRecorder(page);
     videoPath = "/tmp/videos/rtx-3000-autobuy-bot/" + crypto.randomBytes(20).toString('hex') + ".mp4";
     console.log(videoPath)
