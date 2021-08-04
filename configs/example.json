@@ -1,35 +1,28 @@
 {
     "general": {
-        "debug": false,
-    },
-    "payment_gateways": {
-        "amazon": {
-            "email": "",
-            "password": "",
-            "totp_secret": ""
-        }
+        "enabled": false,
+        "debug": true,
+        "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0",
+        "proxy": "socks5://192.168.81.13:1080"
     },
     "shops": {
         "nbb": {
-            "phone_number": "+49...",
+            "email": "",
+            "password": "",
             "checkout": true
-        },
-        "asus": {
-            "checkout": true
-        },
-        "ceconomy": {
-            "checkout": false
         }
     },
     "price_limits": {
         "3090": 1500,
-        "3080": 1250,
-        "3070": 725,
-        "3060 ti": 675,
-        "3060": 550
+        "3080 ti": 1000,
+        "3080": 850,
+        "3070 ti": 600,
+        "3070": 700,
+        "3060 ti": 600,
+        "3060": 400
     },
     "telegram": {
-        "token": "",
+        "token": "** Always the same **",
         "chat_id": ""
     }
 }
