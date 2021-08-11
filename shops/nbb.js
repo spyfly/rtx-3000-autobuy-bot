@@ -14,11 +14,19 @@ const amazonPay = require("../payment_gateways/amazon_pay_pptr.js");
 async function performLogin(page, email, password) {
   await page.type('#f_email_address', email)
   await page.type('#f_password', password);
-  //await page.click('#set_rememberme');
-  await Promise.all([
+  await page.click('#set_rememberme');
+  const [_, loginReq, loginNav] = [
     page.click('[type="submit"]', { noWaitAfter: true }),
-    page.waitForNavigation({ waitUntil: 'domcontentloaded' })
-  ]);
+    page.waitForResponse('https://www.notebooksbilliger.de/kundenkonto/anmelden/action/process'),
+    page.waitForNavigation()
+  ]
+  const loginRes = await loginReq;
+  const loginSuccess = await loginRes.status() === 302;
+  console.log("LoginSuccess:", loginSuccess);
+  if (loginSuccess) {
+    await loginNav;
+    console.log("LoginNav Complete!");
+  }
 }
 
 async function removeProductFromCart(page, productId) {
@@ -108,7 +116,20 @@ async function autoBuy(config, deal, warmUp = false) {
       await page.setRequestInterception(true)
 
       page.on('request', (request) => {
-        if (//request.resourceType() === 'image' ||
+        if (//Block Images
+          request.resourceType() === 'image' ||
+          request.url().includes("favicon.ico") ||
+          //Block Fonts
+          request.resourceType() === 'font' ||
+          //Block CSS
+          request.resourceType() === 'stylesheet' ||
+          //Block Scripts and XHR (Does not work)
+          //request.resourceType() === 'script' ||
+          //request.resourceType() === 'xhr' ||
+          //Block selectively
+          request.url().includes("includes/javascript") || // NBB JS Resources
+          request.url().includes("gtm/gtm_desktop.js") || // Google Tag Manager
+          //Block JS
           request.url().includes("klarna") ||
           request.url().includes("amazon.com") ||
           request.url().includes("app.usercentrics.eu") ||
@@ -119,9 +140,15 @@ async function autoBuy(config, deal, warmUp = false) {
           //if (!request.url().includes("notebooksbilliger.de")) {
           //  console.log(request.url())
           //}
+          if (request.resourceType() === 'xhr') {
+            //console.log(request.postData());
+          }
+
           request.continue()
+          console.log(request.url() + " | " + request.resourceType());
         }
       })
+
       await page.setCacheEnabled(true);
       await page.setDefaultNavigationTimeout(120 * 1000); // 120 Seconds Timeout
 
@@ -203,6 +230,28 @@ async function autoBuy(config, deal, warmUp = false) {
           return categoryId;
         });
 
+        const botProtect = await page.evaluate(() => {
+          const botProtections = document.querySelectorAll("script[src]:not([src*='.js'])")
+          if (botProtections.length > 0) {
+            var resp = [];
+            for (const botProtect of botProtections) {
+              resp.push(botProtect.src);
+            }
+            return resp;
+          }
+          return [];
+        });
+        console.log("BotProtection:", botProtect);
+        if (botProtect.length > 1) {
+          console.log("Waiting for Akamai Pixel!");
+          await page.waitForResponse((response) => response.url().includes("pixel"));
+          console.log("Akamai Pixel went through!");
+        }
+
+        //console.log("Waiting for Bot Protection Data to be sent!");
+        //await page.waitForResponse("https://www.notebooksbilliger.de/SSyAHSWJEkTc/bi/FyRbVbpK7W/k7iYDfSzJ3/Ij1uUB8pAw/a0dPDz/IEFwIB");
+        //console.log("Bot Protection Data sent!");
+
         // Vanilla ATC Attempt
         await page.setContent(`<form method="post" 
           action="${deal.href}/action/add_product">
@@ -215,6 +264,8 @@ async function autoBuy(config, deal, warmUp = false) {
         var atcReq = await page.waitForResponse(response => response.url().includes("/action/add_product"));
         // ATC Response Received!
 
+        /*
+        Disable Alternative ATC (Cause of Bans)
         if (atcReq.status() == 403) {
           console.log("ATC blocked by Bot Protection, trying alternative ATC!");
           await page.waitForNavigation();
@@ -228,7 +279,7 @@ async function autoBuy(config, deal, warmUp = false) {
           </form>`)
           await page.click('#add_to_cart', { noWaitAfter: true });
           atcReq = await page.waitForResponse(response => response.url().includes("/action/add_product"));
-        }
+        }*/
 
         if (atcReq.status() == 302) {
           console.log("ATC went through!");
@@ -246,6 +297,7 @@ async function autoBuy(config, deal, warmUp = false) {
             const isLoggedIn = (await loginRes.status() == 302);
             console.log("IsLoggedIn: " + isLoggedIn)
             await navigation;
+            console.log("Navigation complete! | URL:", await page.url());
 
             // Circumvent WR
             await wr_circumvention(page);
@@ -253,6 +305,7 @@ async function autoBuy(config, deal, warmUp = false) {
             if (!isLoggedIn) {
               console.log("Performing login!");
               await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
+              console.log("Performed Login!")
             }
 
             const pageUrl = await page.url();
@@ -263,7 +316,10 @@ async function autoBuy(config, deal, warmUp = false) {
               for (var i = 0; i < 10 && !cleanCart; i++) {
                 console.log("Checking cart contents!");
                 var contentsModified = false
-                const cartContent = await page.evaluate(() => cBasket.aProducts);
+                //const cartContent = await page.evaluate(() => cBasket.aProducts);
+                const cartJs = (await page.content()).match(/(?=new Basket\()[^\)]*/)[0].replace("new Basket(", "");
+                console.log("cartContent: " + eval(cartJs));
+                const cartContent = eval(cartJs);
                 for (const cartItem of cartContent) {
                   if (cartItem.id != productId) {
                     console.log("Incorrect Item in Cart: " + cartItem.productName);
@@ -287,8 +343,19 @@ async function autoBuy(config, deal, warmUp = false) {
               // Cart Content Validation complete
 
               if (cleanCart) {
+                console.log("Enabling Delivery Address and Shipping Options");
+                await page.evaluate(() => {
+                  document.querySelector("#delivery_button").style = "";
+                  document.querySelector("#delivery_private").style = "";
+                  document.querySelector("#delivery_address").style = "";
+                  document.querySelector("#ship2creditcard_55").classList.remove("disship")
+                });
+
                 console.log("Selecting Credit Card Payment!");
                 await page.click('[id="paycreditcard"]');
+
+                console.log("Selecting Hermes Shipping!");
+                await page.click('[id="shiphermescreditcard_55"]');
 
                 console.log("Accepting TOS!");
                 await page.evaluate(() => document.querySelector('[for="conditions"]').click());
@@ -302,14 +369,23 @@ async function autoBuy(config, deal, warmUp = false) {
                 // Handle Checkout
                 if (config.shops.nbb.checkout) {
                   console.log("Checking out!");
+                  await page.evaluate(() => {
+                    document.querySelector('#creditcard').style = "display: block;";
+                    document.querySelector('#checkoutCreditCardSubmit').style = "";
+                    document.querySelector('#checkoutCreditCardSubmit').disabled = false;
+                  })
+
                   await Promise.all([
-                    page.click('#checkout_submit'),
+                    page.click('#checkoutCreditCardSubmit'),
                     page.waitForNavigation({ waitUntil: 'domcontentloaded' })
                   ]);
                   console.log("Reached 3DS Page! Giving User ton of time to checkout!");
 
                   await page.waitForResponse((response) =>
                     response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
+                } else {
+                  //Debug Timeout
+                  await page.waitForTimeout(5000);
                 }
 
                 // Checkout Logic End
@@ -331,7 +407,7 @@ async function autoBuy(config, deal, warmUp = false) {
               }
               success = false;
             } else {
-              console.log("Failed to add product to cart! Trying again!");
+              console.log("Failed to add product to cart! Trying again! URL: " + pageUrl);
               success = false;
             }
           } else {
@@ -339,7 +415,6 @@ async function autoBuy(config, deal, warmUp = false) {
             success = false;
           }
         } else {
-          await page.waitForTimeout(100000);
           console.log("Failed to add product to cart!");
           success = false;
         }
