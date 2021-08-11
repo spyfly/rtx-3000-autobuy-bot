@@ -29,6 +29,26 @@ async function performLogin(page, email, password) {
   }
 }
 
+async function waitForBotProtection(page) {
+  const botProtect = await page.evaluate(() => {
+    const botProtections = document.querySelectorAll("script[src]:not([src*='.js'])")
+    if (botProtections.length > 0) {
+      var resp = [];
+      for (const botProtect of botProtections) {
+        resp.push(botProtect.src);
+      }
+      return resp;
+    }
+    return [];
+  });
+  console.log("BotProtection:", botProtect);
+  if (botProtect.length > 1) {
+    console.log("Waiting for Akamai Pixel!");
+    await page.waitForResponse((response) => response.url().includes("pixel"));
+    console.log("Akamai Pixel went through!");
+  }
+}
+
 async function removeProductFromCart(page, productId) {
   return await page.evaluate(async (productId) => {
     return await (await fetch("https://www.notebooksbilliger.de/warenkorb/delete/" + productId, {
@@ -169,6 +189,8 @@ async function autoBuy(config, deal, warmUp = false) {
         console.log("Warming up!");
         await page.goto('https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia');
         await wr_circumvention(page);
+
+        await waitForBotProtection(page);
         //Disable Cookies Popup
         //await page.evaluate(() => {
         //  localStorage.setItem('usercentrics', 'Test');
@@ -230,23 +252,7 @@ async function autoBuy(config, deal, warmUp = false) {
           return categoryId;
         });
 
-        const botProtect = await page.evaluate(() => {
-          const botProtections = document.querySelectorAll("script[src]:not([src*='.js'])")
-          if (botProtections.length > 0) {
-            var resp = [];
-            for (const botProtect of botProtections) {
-              resp.push(botProtect.src);
-            }
-            return resp;
-          }
-          return [];
-        });
-        console.log("BotProtection:", botProtect);
-        if (botProtect.length > 1) {
-          console.log("Waiting for Akamai Pixel!");
-          await page.waitForResponse((response) => response.url().includes("pixel"));
-          console.log("Akamai Pixel went through!");
-        }
+        await waitForBotProtection(page);
 
         //console.log("Waiting for Bot Protection Data to be sent!");
         //await page.waitForResponse("https://www.notebooksbilliger.de/SSyAHSWJEkTc/bi/FyRbVbpK7W/k7iYDfSzJ3/Ij1uUB8pAw/a0dPDz/IEFwIB");
