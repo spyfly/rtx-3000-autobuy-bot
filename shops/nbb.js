@@ -212,12 +212,12 @@ async function autoBuy(config, deal, warmUp = false) {
           logger.info("ATC went through!");
           const atcTarget = atcReq.headers().location;
           // Stop Page product page from loading for perf/stability reasons
-          await page._client.send("Page.stopLoading");
+          await page.goto("about:blank");
 
           if (atcTarget.includes(productId)) {
             logger.info("Includes ProductID, let's proceed");
             [_, loginReq, navigation] = [
-              page.goto("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1"),
+              page.goto("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1", { referrer: atcReq.headers().location }),
               page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1"),
               page.waitForNavigation()
             ];
