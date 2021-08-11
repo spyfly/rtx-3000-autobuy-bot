@@ -187,7 +187,7 @@ async function autoBuy(config, deal, warmUp = false) {
           <input type="hidden" name="categories_id" value="${categoryId}">
         </form>`)
 
-        const [_, atcResp] = [
+        const [atcClick, atcResp] = [
           page.click('#add_to_cart', { noWaitAfter: true }),
           page.waitForResponse(response => response.url().includes("/action/add_product"))
         ];
