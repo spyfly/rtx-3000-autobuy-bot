@@ -149,6 +149,8 @@ async function autoBuy(config, deal, warmUp = false) {
           //Block selectively
           request.url().includes("includes/javascript") || // NBB JS Resources
           request.url().includes("gtm/gtm_desktop.js") || // Google Tag Manager
+          //Cancel Loading Product Page Popup
+          request.url().includes('action/productpopup') ||
           //Block JS
           request.url().includes("klarna") ||
           request.url().includes("amazon.com") ||
@@ -276,7 +278,7 @@ async function autoBuy(config, deal, warmUp = false) {
           console.log("ATC blocked by Bot Protection, trying alternative ATC!");
           await page.waitForNavigation();
           await page.goto(deal.href);
-
+  
           page.setContent(`<form method="post" 
           action="https://www.notebooksbilliger.de/Produkte/Grafikkarten/action/add_product">
           <button type="submit" id="add_to_cart">In den Warenkorb</button>
