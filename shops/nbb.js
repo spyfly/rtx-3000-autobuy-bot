@@ -11,87 +11,6 @@ const messagesWeb = require('../modules/messages_web.js')
 const crypto = require("crypto");
 const amazonPay = require("../payment_gateways/amazon_pay_pptr.js");
 
-async function performLogin(page, email, password) {
-  await page.type('#f_email_address', email)
-  await page.type('#f_password', password);
-  await page.click('#set_rememberme');
-  const [_, loginReq, loginNav] = [
-    page.click('[type="submit"]', { noWaitAfter: true }),
-    page.waitForResponse('https://www.notebooksbilliger.de/kundenkonto/anmelden/action/process'),
-    page.waitForNavigation()
-  ]
-  const loginRes = await loginReq;
-  const loginSuccess = await loginRes.status() === 302;
-  console.log("LoginSuccess:", loginSuccess);
-  if (loginSuccess) {
-    await loginNav;
-    console.log("LoginNav Complete!");
-  }
-}
-
-async function waitForBotProtection(page) {
-  const botProtect = await page.evaluate(() => {
-    const botProtections = document.querySelectorAll("script[src]:not([src*='.js'])")
-    if (botProtections.length > 0) {
-      var resp = [];
-      for (const botProtect of botProtections) {
-        resp.push(botProtect.src);
-      }
-      return resp;
-    }
-    return [];
-  });
-  console.log("BotProtection:", botProtect);
-  if (botProtect.length > 1) {
-    console.log("Waiting for Akamai Pixel!");
-    await page.waitForResponse((response) => response.url().includes("pixel"));
-    console.log("Akamai Pixel went through!");
-  }
-}
-
-async function removeProductFromCart(page, productId) {
-  return await page.evaluate(async (productId) => {
-    return await (await fetch("https://www.notebooksbilliger.de/warenkorb/delete/" + productId, {
-      "credentials": "include",
-      "headers": {
-        "Upgrade-Insecure-Requests": "1"
-      },
-      "referrer": "https://www.notebooksbilliger.de/warenkorb",
-      "method": "GET",
-      "mode": "cors"
-    })).text();
-  }, productId);
-}
-
-async function updateProductQuantity(page, productId, quantity) {
-  return await page.evaluate(async (productId, quantity) => {
-    return await (await fetch("https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a", {
-      "credentials": "include",
-      "headers": {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      "referrer": "https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a",
-      "body": "quantity%5B" + productId + "%5D=" + quantity + "&press_enter=0",
-      "method": "POST",
-      "mode": "cors"
-    })).text();
-  }, productId, quantity);
-}
-
-async function fetchCart(page) {
-  await page.goto("https://www.notebooksbilliger.de/warenkorb", { waitUntil: 'domcontentloaded' });
-  const shoppingCartRefreshUrl = await page.evaluate(() => document.querySelector('form[name="shopping_cart_refresh"]').getAttribute("action"));
-  console.log(shoppingCartRefreshUrl);
-
-  return await page.evaluate(() => {
-    var cartItems = [];
-    for (const item of document.querySelectorAll('button.js-remove-from-cart')) {
-      cartItems.push(item.getAttribute('data-pid'));
-    }
-    return cartItems;
-  });
-}
-
 async function autoBuy(config, deal, warmUp = false) {
   const logger = new Logger(config.user, 'nbb');
   logger.info("Starting Browser!");
@@ -129,7 +48,7 @@ async function autoBuy(config, deal, warmUp = false) {
 
     const recorder = new PuppeteerScreenRecorder(page);
     videoPath = "/tmp/videos/rtx-3000-autobuy-bot/" + crypto.randomBytes(20).toString('hex') + ".mp4";
-    console.log(videoPath)
+    logger.info(videoPath)
     await recorder.start(videoPath);
 
     try {
@@ -160,14 +79,14 @@ async function autoBuy(config, deal, warmUp = false) {
           request.url().includes("js-agent.newrelic.com")) request.abort()
         else {
           //if (!request.url().includes("notebooksbilliger.de")) {
-          //  console.log(request.url())
+          //  logger.info(request.url())
           //}
           if (request.resourceType() === 'xhr') {
-            //console.log(request.postData());
+            //logger.info(request.postData());
           }
 
           request.continue()
-          console.log(request.url() + " | " + request.resourceType());
+          logger.info(request.url() + " | " + request.resourceType());
         }
       })
 
@@ -188,7 +107,7 @@ async function autoBuy(config, deal, warmUp = false) {
       //await page.goto("https://m.notebooksbilliger.de/newsletter");
 
       if (warmUp) {
-        console.log("Warming up!");
+        logger.info("Warming up!");
         await page.goto('https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia');
         await wr_circumvention(page);
 
@@ -199,7 +118,7 @@ async function autoBuy(config, deal, warmUp = false) {
         //});
 
         const isLoggedIn = await page.evaluate(() => document.querySelectorAll('[data-wt="Kundenkonto"]').length == 1)
-        console.log("IsLoggedIn: " + isLoggedIn)
+        logger.info("IsLoggedIn: " + isLoggedIn)
 
         const cartCount = await page.evaluate(() => {
           if (document.querySelector('#cart-count') != null) {
@@ -208,10 +127,10 @@ async function autoBuy(config, deal, warmUp = false) {
           return 0;
         })
 
-        console.log("Cart Count: " + cartCount);
+        logger.info("Cart Count: " + cartCount);
 
         if (cartCount == 0) {
-          console.log("Adding item to cart!");
+          logger.info("Adding item to cart!");
           await Promise.all([
             page.click('.js-add-to-cart'),
             page.waitForNavigation({ waitUntil: 'domcontentloaded' })
@@ -221,18 +140,18 @@ async function autoBuy(config, deal, warmUp = false) {
         if (!isLoggedIn) {
           await page.goto('https://www.notebooksbilliger.de/kasse/anmelden', { waitUntil: 'domcontentloaded' });
           await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
-          console.log("Performed Login!");
+          logger.info("Performed Login!");
         }
 
         const cart = await fetchCart(page);
-        console.log(cart.length);
+        logger.info(cart.length);
         if (cart.length > 0) {
-          console.log("Require Cart Cleanup!");
+          logger.info("Require Cart Cleanup!");
           for (const cartItem of cart) {
-            console.log("Removing Product: " + cartItem);
+            logger.info("Removing Product: " + cartItem);
             await removeProductFromCart(page, cartItem);
           }
-          console.log("Cart cleanup complete!");
+          logger.info("Cart cleanup complete!");
         }
       } else {
         const productId = deal.href.match(/[0-9]{6}/g)[0];
@@ -256,9 +175,9 @@ async function autoBuy(config, deal, warmUp = false) {
 
         await waitForBotProtection(page);
 
-        //console.log("Waiting for Bot Protection Data to be sent!");
+        //logger.info("Waiting for Bot Protection Data to be sent!");
         //await page.waitForResponse("https://www.notebooksbilliger.de/SSyAHSWJEkTc/bi/FyRbVbpK7W/k7iYDfSzJ3/Ij1uUB8pAw/a0dPDz/IEFwIB");
-        //console.log("Bot Protection Data sent!");
+        //logger.info("Bot Protection Data sent!");
 
         // Vanilla ATC Attempt
         await page.setContent(`<form method="post" 
@@ -275,7 +194,7 @@ async function autoBuy(config, deal, warmUp = false) {
         /*
         Disable Alternative ATC (Cause of Bans)
         if (atcReq.status() == 403) {
-          console.log("ATC blocked by Bot Protection, trying alternative ATC!");
+          logger.info("ATC blocked by Bot Protection, trying alternative ATC!");
           await page.waitForNavigation();
           await page.goto(deal.href);
   
@@ -290,13 +209,13 @@ async function autoBuy(config, deal, warmUp = false) {
         }*/
 
         if (atcReq.status() == 302) {
-          console.log("ATC went through!");
+          logger.info("ATC went through!");
           const atcTarget = atcReq.headers().location;
           // Stop Page product page from loading for perf/stability reasons
           await page._client.send("Page.stopLoading");
 
           if (atcTarget.includes(productId)) {
-            console.log("Includes ProductID, let's proceed");
+            logger.info("Includes ProductID, let's proceed");
             [_, loginReq, navigation] = [
               page.goto("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1"),
               page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1"),
@@ -306,17 +225,17 @@ async function autoBuy(config, deal, warmUp = false) {
             // Checkout Start
             const loginRes = await loginReq;
             const isLoggedIn = (await loginRes.status() == 302);
-            console.log("IsLoggedIn: " + isLoggedIn)
+            logger.info("IsLoggedIn: " + isLoggedIn)
             await navigation;
-            console.log("Navigation complete! | URL:", await page.url());
+            logger.info("Navigation complete! | URL:", await page.url());
 
             // Circumvent WR
             await wr_circumvention(page);
 
             if (!isLoggedIn) {
-              console.log("Performing login!");
+              logger.info("Performing login!");
               await performLogin(page, config.shops.nbb.email, config.shops.nbb.password);
-              console.log("Performed Login!")
+              logger.info("Performed Login!")
             }
 
             const pageUrl = await page.url();
@@ -325,19 +244,19 @@ async function autoBuy(config, deal, warmUp = false) {
               //Checking Cart Contents
               var cleanCart = false;
               for (var i = 0; i < 10 && !cleanCart; i++) {
-                console.log("Checking cart contents!");
+                logger.info("Checking cart contents!");
                 var contentsModified = false
                 //const cartContent = await page.evaluate(() => cBasket.aProducts);
                 const cartJs = (await page.content()).match(/(?=new Basket\()[^\)]*/)[0].replace("new Basket(", "");
-                console.log("cartContent: " + eval(cartJs));
+                logger.info("cartContent: " + eval(cartJs));
                 const cartContent = eval(cartJs);
                 for (const cartItem of cartContent) {
                   if (cartItem.id != productId) {
-                    console.log("Incorrect Item in Cart: " + cartItem.productName);
+                    logger.info("Incorrect Item in Cart: " + cartItem.productName);
                     await removeProductFromCart(page, cartItem.id);
                     contentsModified = true;
                   } else if (cartItem.quantity != 1) {
-                    console.log("Quantity larger than 1 detected!");
+                    logger.info("Quantity larger than 1 detected!");
                     await updateProductQuantity(page, productId, 1);
                     contentsModified = true;
                   }
@@ -354,7 +273,7 @@ async function autoBuy(config, deal, warmUp = false) {
               // Cart Content Validation complete
 
               if (cleanCart) {
-                console.log("Enabling Delivery Address and Shipping Options");
+                logger.info("Enabling Delivery Address and Shipping Options");
                 await page.evaluate(() => {
                   document.querySelector("#delivery_button").style = "";
                   document.querySelector("#delivery_private").style = "";
@@ -362,16 +281,16 @@ async function autoBuy(config, deal, warmUp = false) {
                   document.querySelector("#ship2creditcard_55").classList.remove("disship")
                 });
 
-                console.log("Selecting Credit Card Payment!");
+                logger.info("Selecting Credit Card Payment!");
                 await page.click('[id="paycreditcard"]');
 
-                console.log("Selecting Hermes Shipping!");
+                logger.info("Selecting Hermes Shipping!");
                 await page.click('[id="shiphermescreditcard_55"]');
 
-                console.log("Accepting TOS!");
+                logger.info("Accepting TOS!");
                 await page.evaluate(() => document.querySelector('[for="conditions"]').click());
 
-                console.log("Proceeding!");
+                logger.info("Proceeding!");
                 await Promise.all([
                   page.click('[type="submit"]'),
                   page.waitForNavigation({ waitUntil: 'domcontentloaded' })
@@ -379,7 +298,7 @@ async function autoBuy(config, deal, warmUp = false) {
 
                 // Handle Checkout
                 if (config.shops.nbb.checkout) {
-                  console.log("Checking out!");
+                  logger.info("Checking out!");
                   await page.evaluate(() => {
                     document.querySelector('#creditcard').style = "display: block;";
                     document.querySelector('#checkoutCreditCardSubmit').style = "";
@@ -390,7 +309,7 @@ async function autoBuy(config, deal, warmUp = false) {
                     page.click('#checkoutCreditCardSubmit'),
                     page.waitForNavigation({ waitUntil: 'domcontentloaded' })
                   ]);
-                  console.log("Reached 3DS Page! Giving User ton of time to checkout!");
+                  logger.info("Reached 3DS Page! Giving User ton of time to checkout!");
 
                   await page.waitForResponse((response) =>
                     response.url().includes("notebooksbilliger.de"), { timeout: 1000 * 60 * 15 });
@@ -401,32 +320,32 @@ async function autoBuy(config, deal, warmUp = false) {
 
                 // Checkout Logic End
               } else {
-                console.log("Failed cleaning cart!")
+                logger.info("Failed cleaning cart!")
                 success = false;
               }
             } else if (pageUrl == "https://www.notebooksbilliger.de/warenkorb") {
-              console.log("Couldn't checkout!");
+              logger.info("Couldn't checkout!");
               const cart = await fetchCart(page);
-              console.log(cart.length);
+              logger.info(cart.length);
               if (cart.length > 0) {
-                console.log("Require Cart Cleanup!");
+                logger.info("Require Cart Cleanup!");
                 for (const cartItem of cart) {
-                  console.log("Removing Product: " + cartItem);
+                  logger.info("Removing Product: " + cartItem);
                   await removeProductFromCart(page, cartItem);
                 }
-                console.log("Cart cleanup complete!");
+                logger.info("Cart cleanup complete!");
               }
               success = false;
             } else {
-              console.log("Failed to add product to cart! Trying again! URL: " + pageUrl);
+              logger.info("Failed to add product to cart! Trying again! URL: " + pageUrl);
               success = false;
             }
           } else {
-            console.log("Does not include productID!")
+            logger.info("Does not include productID!")
             success = false;
           }
         } else {
-          console.log("Failed to add product to cart!");
+          logger.info("Failed to add product to cart!");
           success = false;
         }
       }
@@ -436,20 +355,101 @@ async function autoBuy(config, deal, warmUp = false) {
     }
 
     if (!success) {
-      console.log("Regenerating Browser Details after failure!");
+      logger.info("Regenerating Browser Details after failure!");
       await imposter.generateNewDetails(config.user);
     }
 
     await recorder.stop();
     await context.close();
   } catch (err) {
-    console.log("Failed launching second browser instance!");
+    logger.info("Failed launching second browser instance!");
   }
 
   return {
     success: success,
     videoPath: videoPath,
     logFilePath: logger.getLogFile()
+  }
+
+  async function performLogin(page, email, password) {
+    await page.type('#f_email_address', email)
+    await page.type('#f_password', password);
+    await page.click('#set_rememberme');
+    const [_, loginReq, loginNav] = [
+      page.click('[type="submit"]', { noWaitAfter: true }),
+      page.waitForResponse('https://www.notebooksbilliger.de/kundenkonto/anmelden/action/process'),
+      page.waitForNavigation()
+    ]
+    const loginRes = await loginReq;
+    const loginSuccess = await loginRes.status() === 302;
+    logger.info("LoginSuccess:", loginSuccess);
+    if (loginSuccess) {
+      await loginNav;
+      logger.info("LoginNav Complete!");
+    }
+  }
+
+  async function waitForBotProtection(page) {
+    const botProtect = await page.evaluate(() => {
+      const botProtections = document.querySelectorAll("script[src]:not([src*='.js'])")
+      if (botProtections.length > 0) {
+        var resp = [];
+        for (const botProtect of botProtections) {
+          resp.push(botProtect.src);
+        }
+        return resp;
+      }
+      return [];
+    });
+    logger.info("BotProtection:", botProtect);
+    if (botProtect.length > 1) {
+      logger.info("Waiting for Akamai Pixel!");
+      await page.waitForResponse((response) => response.url().includes("pixel"));
+      logger.info("Akamai Pixel went through!");
+    }
+  }
+
+  async function removeProductFromCart(page, productId) {
+    return await page.evaluate(async (productId) => {
+      return await (await fetch("https://www.notebooksbilliger.de/warenkorb/delete/" + productId, {
+        "credentials": "include",
+        "headers": {
+          "Upgrade-Insecure-Requests": "1"
+        },
+        "referrer": "https://www.notebooksbilliger.de/warenkorb",
+        "method": "GET",
+        "mode": "cors"
+      })).text();
+    }, productId);
+  }
+
+  async function updateProductQuantity(page, productId, quantity) {
+    return await page.evaluate(async (productId, quantity) => {
+      return await (await fetch("https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a", {
+        "credentials": "include",
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        "referrer": "https://www.notebooksbilliger.de/warenkorb/action/shopping_cart_refresh/refcampaign_id/f69dffa4a1fb2f35f9efae6cf4504e0a",
+        "body": "quantity%5B" + productId + "%5D=" + quantity + "&press_enter=0",
+        "method": "POST",
+        "mode": "cors"
+      })).text();
+    }, productId, quantity);
+  }
+
+  async function fetchCart(page) {
+    await page.goto("https://www.notebooksbilliger.de/warenkorb", { waitUntil: 'domcontentloaded' });
+    const shoppingCartRefreshUrl = await page.evaluate(() => document.querySelector('form[name="shopping_cart_refresh"]').getAttribute("action"));
+    logger.info(shoppingCartRefreshUrl);
+
+    return await page.evaluate(() => {
+      var cartItems = [];
+      for (const item of document.querySelectorAll('button.js-remove-from-cart')) {
+        cartItems.push(item.getAttribute('data-pid'));
+      }
+      return cartItems;
+    });
   }
 }
 
