@@ -292,6 +292,9 @@ async function autoBuy(config, deal, warmUp = false) {
         if (atcReq.status() == 302) {
           console.log("ATC went through!");
           const atcTarget = atcReq.headers().location;
+          // Stop Page product page from loading for perf/stability reasons
+          await page._client.send("Page.stopLoading");
+
           if (atcTarget.includes(productId)) {
             console.log("Includes ProductID, let's proceed");
             [_, loginReq, navigation] = [
