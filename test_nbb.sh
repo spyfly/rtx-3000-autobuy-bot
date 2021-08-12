@@ -1,2 +1,2 @@
 #!/bin/sh
-curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"nbb","deal": {"title": "RTX 3080", "href": "https://www.notebooksbilliger.de/pc+hardware/grafikkarten/msi+geforce+rtx+3060+ti+gaming+z+trio+8g+lhr+727056", "price": "56.9"}}'   http://localhost:3000/trigger
+curl --header "Content-Type: application/json"   --request POST   --data '{"shop":"nbb","deal": {"title": "RTX 3080", "href": "https://www.notebooksbilliger.de/pc+hardware/grafikkarten/palit+rtx+3060+stormx+12gb+gddr6+703354", "price": "56.9"}}'   http://localhost:3000/trigger
