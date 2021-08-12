@@ -189,7 +189,7 @@ async function autoBuy(config, deal, warmUp = false) {
 
         // Await ATC Response before executing ATC Request
         const atcResp = page.waitForResponse(response => response.url().includes("/action/add_product"));
-        const atcClick = page.click('#add_to_cart', { noWaitAfter: true }),
+        const atcClick = page.click('#add_to_cart', { noWaitAfter: true });
 
         // Wait for ATC Call to complete
         var atcReq = await atcResp;
