@@ -187,10 +187,11 @@ async function autoBuy(config, deal, warmUp = false) {
           <input type="hidden" name="categories_id" value="${categoryId}">
         </form>`)
 
-        const [atcClick, atcResp] = [
-          page.click('#add_to_cart', { noWaitAfter: true }),
-          page.waitForResponse(response => response.url().includes("/action/add_product"))
-        ];
+        // Await ATC Response before executing ATC Request
+        const atcResp = page.waitForResponse(response => response.url().includes("/action/add_product"));
+        const atcClick = page.click('#add_to_cart', { noWaitAfter: true }),
+
+        // Wait for ATC Call to complete
         var atcReq = await atcResp;
         // ATC Response Received!
 
