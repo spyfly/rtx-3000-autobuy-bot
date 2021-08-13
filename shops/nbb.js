@@ -220,11 +220,12 @@ async function autoBuy(config, deal, warmUp = false) {
 
           if (atcTarget.includes(productId)) {
             logger.info("Includes ProductID, let's proceed");
-            [_, loginReq, navigation] = [
-              page.goto("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1", { referrer: atcReq.headers().location }),
+            [loginReq, navigation] = [
               page.waitForResponse("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1"),
               page.waitForNavigation()
             ];
+            // Go to cart (with login)
+            await page.goto("https://www.notebooksbilliger.de/kasse/anmelden/cartlayer/1", { referrer: atcReq.headers().location, noWaitAfter: true });
 
             // Checkout Start
             const loginRes = await loginReq;
